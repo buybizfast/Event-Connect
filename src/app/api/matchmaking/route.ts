@@ -337,13 +337,14 @@ export async function GET() {
       // Format the matches for the frontend
       const formattedMatches = matches.map(match => {
         // Extract LinkedIn data if available
-        const linkedinData = match.profile.linkedinProfile ? {
-          industry: match.profile.linkedinProfile.industry,
-          headline: match.profile.linkedinProfile.headline,
-          summary: match.profile.linkedinProfile.summary,
-          location: match.profile.linkedinProfile.location,
-          positions: match.profile.linkedinProfile.positions,
-          profileUrl: (match.profile.linkedinProfile as any).profileUrl,
+        const profileWithLinkedIn = match.profile as any;
+        const linkedinData = profileWithLinkedIn.linkedinProfile ? {
+          industry: profileWithLinkedIn.linkedinProfile.industry,
+          headline: profileWithLinkedIn.linkedinProfile.headline,
+          summary: profileWithLinkedIn.linkedinProfile.summary,
+          location: profileWithLinkedIn.linkedinProfile.location,
+          positions: profileWithLinkedIn.linkedinProfile.positions,
+          profileUrl: profileWithLinkedIn.linkedinProfile.profileUrl,
         } : {};
         
         // Create conversation starters using both regular profile and LinkedIn data
@@ -358,23 +359,18 @@ export async function GET() {
         
         // Format the match for the frontend
         return {
-          user: {
-            id: match.userId,
-            name: match.profile.displayName,
-            title: match.profile.title || linkedinData.headline || '',
-            company: match.profile.company || (linkedinData.positions && linkedinData.positions[0]?.company) || '',
-            photoURL: match.profile.photoURL || (match.profile.linkedinProfile?.profilePicture) || null,
-            interests: match.profile.interests || [],
-            bio: match.profile.bio || linkedinData.summary || '',
-            industry: linkedinData.industry || '',
-            location: linkedinData.location || '',
-            linkedinUrl: linkedinData.profileUrl || '',
-            positions: linkedinData.positions || [],
-          },
-          score: Math.round(match.score * 100), // Convert to percentage
-          matchReason: match.matchReasons[0] || 'Potential networking match',
-          allReasons: match.matchReasons,
+          id: match.userId,
+          name: match.profile.displayName,
+          title: match.profile.title || '',
+          company: match.profile.company || '',
+          bio: match.profile.bio || '',
+          interests: match.profile.interests || [],
+          email: match.profile.email,
+          photoURL: match.profile.photoURL || ((profileWithLinkedIn.linkedinProfile?.profilePicture) || null),
+          score: match.score,
+          matchReasons: match.matchReasons,
           conversationStarters,
+          ...linkedinData
         };
       });
       
