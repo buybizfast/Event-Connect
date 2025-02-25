@@ -25,6 +25,7 @@ interface Message {
   text: string;
   timestamp: string;
   read: boolean;
+  senderName?: string;
 }
 
 // Type for grouped messages by date
@@ -152,6 +153,7 @@ const generateMockMessages = (userId: string): Message[] => {
     const message4: Message = {
       id: '4',
       senderId: 'groupMember1',
+      senderName: 'David',
       text: 'Is everyone prepared for the meetup next week?',
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
       read: true
@@ -160,6 +162,7 @@ const generateMockMessages = (userId: string): Message[] => {
     const message5: Message = {
       id: '5',
       senderId: 'groupMember2',
+      senderName: 'Emily',
       text: 'I\'ll be bringing my presentation materials.',
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
       read: true
@@ -168,6 +171,7 @@ const generateMockMessages = (userId: string): Message[] => {
     const message6: Message = {
       id: '6',
       senderId: 'groupMember1',
+      senderName: 'David',
       text: 'Is anyone bringing their pitch deck?',
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
       read: true
@@ -331,9 +335,7 @@ export default function ConversationPage() {
                       } px-4 py-2 shadow`}>
                         {user.isGroup && !isCurrentUser && (
                           <p className="text-xs font-medium text-indigo-600 mb-1">
-                            {message.senderId === 'groupMember1' ? 'David' : 
-                             message.senderId === 'groupMember2' ? 'Emily' : 
-                             message.senderId}
+                            {message.senderName || message.senderId}
                           </p>
                         )}
                         <p className="text-sm">{message.text}</p>
