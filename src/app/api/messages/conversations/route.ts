@@ -1,7 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Define interfaces for our data types
+interface Message {
+  text: string;
+  senderId: string;
+  senderName?: string;
+  timestamp: string;
+}
+
+interface Conversation {
+  id: string;
+  participants: string[];
+  lastMessage: Message;
+  unreadCount: number;
+  isGroup: boolean;
+  name?: string;
+  avatar?: string;
+}
+
 // Mock database for conversations
-const conversations = [
+const conversations: Conversation[] = [
   {
     id: 'conv1',
     participants: ['currentUser', 'user1'],
@@ -51,7 +69,7 @@ const conversations = [
 ];
 
 // Mock user data for populating conversation info
-const users = {
+const users: Record<string, { id: string; name: string; avatar: string }> = {
   'user1': {
     id: 'user1',
     name: 'John Smith',
@@ -106,7 +124,7 @@ export async function GET(request: NextRequest) {
       } else {
         // For direct messages, get the other participant's info
         const otherParticipantId = conv.participants.find(p => p !== userId);
-        const otherUser = otherParticipantId ? users[otherParticipantId] : null;
+        const otherUser = otherParticipantId ? users[otherParticipantId as keyof typeof users] : null;
         
         return {
           ...conv,
@@ -131,22 +149,18 @@ export async function GET(request: NextRequest) {
 // POST /api/messages/conversations - Create a new conversation
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { participants, name, isGroup } = body;
+    const { participants, isGroup, name } = await request.json();
     
-    if (!participants || participants.length < 2) {
+    // Validate request
+    if (!participants || !Array.isArray(participants) || participants.length < 2) {
       return NextResponse.json(
-        { error: 'At least two participants are required' }, 
+        { error: 'Invalid participants. Must provide at least 2 participants.' },
         { status: 400 }
       );
     }
     
-    // Ensure the current user is included
-    if (!participants.includes('currentUser')) {
-      participants.push('currentUser');
-    }
-    
-    const newConversation = {
+    // Create new conversation
+    const newConversation: Conversation = {
       id: `conv-${Date.now()}`,
       participants,
       lastMessage: {
