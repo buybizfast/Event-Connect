@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read/write access to all users for development purposes
+    // WARNING: This is insecure and should be properly restricted in production
+    match /{document=**} {
+      allow read, write: if true;
+    }
+    
+    // More secure rules for production (commented out for now)
+    // Uncomment these and remove the rule above when ready for production
+    /*
+    // Allow read access to all authenticated users for all collections
+    match /{document=**} {
+      allow read: if request.auth != null;
+    }
+    
+    // Allow users to read and write their own profile data
+    match /users/{userId} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow reading and writing to subcollections
+      match /{subcollection}/{document} {
+        allow read, write: if request.auth != null;
+      }
+    }
+    
+    // Allow authenticated users to read all events
+    match /events/{eventId} {
+      // Allow users to create, update, and delete events
+      allow write: if request.auth != null;
+      
+      // Allow reading and writing to subcollections
+      match /{subcollection}/{document} {
+        allow read, write: if request.auth != null;
+      }
+    }
+    
+    // Allow authenticated users to read and write event registrations
+    match /eventRegistrations/{registrationId} {
+      allow read, write: if request.auth != null;
+    }
+    */
+  }
+} 
