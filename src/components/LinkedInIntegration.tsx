@@ -14,99 +14,6 @@ export default function LinkedInIntegration() {
   const [success, setSuccess] = useState<string | null>(null);
   const { user } = useAuth();
 
-  // Check if user is already verified
-  useEffect(() => {
-    const checkVerificationStatus = async () => {
-      if (!user) return;
-
-      try {
-        setLoading(true);
-        // Call the API endpoint to check verification status
-        const response = await fetch(`/api/linkedin/profile?userId=${user.uid}&t=${Date.now()}`);
-        const data = await response.json();
-        
-        if (data.isVerified) {
-          console.log('User is verified:', data.isVerified);
-          setIsVerified(true);
-        } else {
-          console.log('User is not verified or profile not found');
-          setIsVerified(false);
-          
-          // If URL indicates LinkedIn connection but status is not verified, try to verify manually
-          const urlParams = new URLSearchParams(window.location.search);
-          if (urlParams.get('linkedin_connected') === 'true') {
-            console.log('LinkedIn connected but user not verified, attempting manual verification');
-            await verifyUser();
-          }
-        }
-      } catch (err) {
-        console.error('Error checking verification status:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkVerificationStatus();
-  }, [user]);
-
-  // Check for URL parameters indicating connection status
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('linkedin_connected') === 'true') {
-      setSuccess('Successfully verified with LinkedIn!');
-      checkVerificationAfterRedirect();
-    }
-    if (urlParams.get('linkedin_error')) {
-      setError(`Error connecting to LinkedIn: ${urlParams.get('linkedin_error')}`);
-    }
-    
-    // Clean up URL parameters
-    if (urlParams.has('linkedin_connected') || urlParams.has('linkedin_error')) {
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, document.title, newUrl);
-    }
-  }, []);
-  
-  const checkVerificationAfterRedirect = async () => {
-    if (!user) return;
-    
-    setLoading(true);
-    try {
-      // Wait a moment to ensure the callback has time to update the database
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Call the API endpoint to check verification status
-      const response = await fetch(`/api/linkedin/profile?userId=${user.uid}&t=${Date.now()}`);
-      const data = await response.json();
-      
-      if (data.isVerified) {
-        console.log('Verification confirmed after redirect');
-        setIsVerified(true);
-        setSuccess('Your account has been verified with LinkedIn!');
-      } else {
-        console.log('Verification not confirmed after redirect, trying to verify manually');
-        await verifyUser();
-      }
-    } catch (err) {
-      console.error('Error checking verification after redirect:', err);
-      setError('Error confirming verification status');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const connectToLinkedIn = () => {
-    setLoading(true);
-    setError(null);
-    try {
-      window.location.href = '/api/linkedin/auth';
-    } catch (err) {
-      console.error('Error redirecting to LinkedIn auth:', err);
-      setError('Error connecting to LinkedIn');
-      setLoading(false);
-    }
-  };
-
   const verifyUser = async () => {
     if (!user) return;
 
@@ -159,6 +66,99 @@ export default function LinkedInIntegration() {
       setLoading(false);
     }
   };
+  
+  const checkVerificationAfterRedirect = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      // Wait a moment to ensure the callback has time to update the database
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Call the API endpoint to check verification status
+      const response = await fetch(`/api/linkedin/profile?userId=${user.uid}&t=${Date.now()}`);
+      const data = await response.json();
+      
+      if (data.isVerified) {
+        console.log('Verification confirmed after redirect');
+        setIsVerified(true);
+        setSuccess('Your account has been verified with LinkedIn!');
+      } else {
+        console.log('Verification not confirmed after redirect, trying to verify manually');
+        await verifyUser();
+      }
+    } catch (err) {
+      console.error('Error checking verification after redirect:', err);
+      setError('Error confirming verification status');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Check if user is already verified
+  useEffect(() => {
+    const checkVerificationStatus = async () => {
+      if (!user) return;
+
+      try {
+        setLoading(true);
+        // Call the API endpoint to check verification status
+        const response = await fetch(`/api/linkedin/profile?userId=${user.uid}&t=${Date.now()}`);
+        const data = await response.json();
+        
+        if (data.isVerified) {
+          console.log('User is verified:', data.isVerified);
+          setIsVerified(true);
+        } else {
+          console.log('User is not verified or profile not found');
+          setIsVerified(false);
+          
+          // If URL indicates LinkedIn connection but status is not verified, try to verify manually
+          const urlParams = new URLSearchParams(window.location.search);
+          if (urlParams.get('linkedin_connected') === 'true') {
+            console.log('LinkedIn connected but user not verified, attempting manual verification');
+            await verifyUser();
+          }
+        }
+      } catch (err) {
+        console.error('Error checking verification status:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkVerificationStatus();
+  }, [user, verifyUser]);
+
+  // Check for URL parameters indicating connection status
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('linkedin_connected') === 'true') {
+      setSuccess('Successfully verified with LinkedIn!');
+      checkVerificationAfterRedirect();
+    }
+    if (urlParams.get('linkedin_error')) {
+      setError(`Error connecting to LinkedIn: ${urlParams.get('linkedin_error')}`);
+    }
+    
+    // Clean up URL parameters
+    if (urlParams.has('linkedin_connected') || urlParams.has('linkedin_error')) {
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, [checkVerificationAfterRedirect]);
+  
+  const connectToLinkedIn = () => {
+    setLoading(true);
+    setError(null);
+    try {
+      window.location.href = '/api/linkedin/auth';
+    } catch (err) {
+      console.error('Error redirecting to LinkedIn auth:', err);
+      setError('Error connecting to LinkedIn');
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="bg-white shadow rounded-lg p-6">
@@ -167,7 +167,7 @@ export default function LinkedInIntegration() {
       <div className="mb-4 p-4 bg-blue-50 text-blue-700 rounded-md">
         <p className="text-sm">
           <strong>Verify your account:</strong> Connect your LinkedIn account to verify your identity.
-          Verified users receive a checkmark badge on their profile. We don't retrieve any data from your LinkedIn profile.
+          Verified users receive a checkmark badge on their profile. We don&apos;t retrieve any data from your LinkedIn profile.
         </p>
       </div>
       

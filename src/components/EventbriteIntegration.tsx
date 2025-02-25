@@ -43,22 +43,6 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
     checkConnection();
   }, []);
 
-  // Check for URL parameters indicating connection status
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('eventbrite_connected') === 'true') {
-      setSuccess('Successfully connected to Eventbrite!');
-      fetchEvents();
-    }
-    if (urlParams.get('eventbrite_error')) {
-      setError(`Error connecting to Eventbrite: ${urlParams.get('eventbrite_error')}`);
-    }
-  }, []);
-
-  const connectToEventbrite = () => {
-    window.location.href = '/api/eventbrite/auth';
-  };
-
   const fetchEvents = async () => {
     if (!isConnected) return;
 
@@ -76,6 +60,22 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
     } finally {
       setLoading(false);
     }
+  };
+
+  // Check for URL parameters indicating connection status
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('eventbrite_connected') === 'true') {
+      setSuccess('Successfully connected to Eventbrite!');
+      fetchEvents();
+    }
+    if (urlParams.get('eventbrite_error')) {
+      setError(`Error connecting to Eventbrite: ${urlParams.get('eventbrite_error')}`);
+    }
+  }, [fetchEvents]);
+
+  const connectToEventbrite = () => {
+    window.location.href = '/api/eventbrite/auth';
   };
 
   const importEvent = async (eventbriteId: string) => {

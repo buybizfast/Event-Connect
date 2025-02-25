@@ -185,11 +185,11 @@ export default function ProfilePage() {
       const newUrl = window.location.pathname;
       window.history.replaceState({}, document.title, newUrl);
     }
-  }, []);
+  }, [fetchUserProfile]);
   
   useEffect(() => {
     fetchUserProfile();
-  }, [user]);
+  }, [user, fetchUserProfile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

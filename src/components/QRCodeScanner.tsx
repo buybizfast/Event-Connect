@@ -40,7 +40,7 @@ export default function QRCodeScanner({
           .catch(err => console.error('Error stopping scanner:', err));
       }
     };
-  }, []);
+  }, [isScanning]);
 
   const startScanner = () => {
     if (!containerRef.current) return;

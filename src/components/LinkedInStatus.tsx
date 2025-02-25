@@ -11,25 +11,6 @@ export default function LinkedInStatus() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
 
-  useEffect(() => {
-    // Check for LinkedIn callback parameters
-    const linkedinError = searchParams.get('linkedin_error');
-    const linkedinConnected = searchParams.get('linkedin_connected');
-
-    if (linkedinError) {
-      setError(decodeURIComponent(linkedinError));
-      setLoading(false);
-    } else if (linkedinConnected === 'true') {
-      // If LinkedIn connected, check verification status from API
-      checkVerificationStatus();
-    } else if (user) {
-      // If user is logged in, check verification status from API
-      checkVerificationStatus();
-    } else {
-      setLoading(false);
-    }
-  }, [searchParams, user]);
-
   const checkVerificationStatus = async () => {
     if (!user) {
       setLoading(false);
@@ -51,6 +32,25 @@ export default function LinkedInStatus() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Check for LinkedIn callback parameters
+    const linkedinError = searchParams.get('linkedin_error');
+    const linkedinConnected = searchParams.get('linkedin_connected');
+
+    if (linkedinError) {
+      setError(decodeURIComponent(linkedinError));
+      setLoading(false);
+    } else if (linkedinConnected === 'true') {
+      // If LinkedIn connected, check verification status from API
+      checkVerificationStatus();
+    } else if (user) {
+      // If user is logged in, check verification status from API
+      checkVerificationStatus();
+    } else {
+      setLoading(false);
+    }
+  }, [searchParams, user, checkVerificationStatus]);
 
   if (loading) {
     return null;

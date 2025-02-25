@@ -58,9 +58,9 @@ export default function LinkedInAuthTest() {
               <ol className="list-decimal ml-4">
                 <li>Go to the LinkedIn Developer Portal</li>
                 <li>Select your app with ID: {process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID}</li>
-                <li>Go to the "Products" tab</li>
-                <li>Request access to "Sign In with LinkedIn"</li>
-                <li>Under "Auth" tab, verify the redirect URL is: {`${process.env.NEXT_PUBLIC_BASE_URL}/api/linkedin/callback`}</li>
+                <li>Go to the &quot;Products&quot; tab</li>
+                <li>Request access to &quot;Sign In with LinkedIn&quot;</li>
+                <li>Under &quot;Auth&quot; tab, verify the redirect URL is: {`${process.env.NEXT_PUBLIC_BASE_URL}/api/linkedin/callback`}</li>
                 <li>Make sure the OpenID Connect scopes (openid) are authorized</li>
               </ol>
             </div>
