@@ -7,8 +7,33 @@ import { ArrowLeft, Send, Paperclip, Smile, User } from 'lucide-react';
 import Navigation from '@/components/Navigation';
 import ProtectedRoute from '@/components/client/ProtectedRoute';
 
+// Define interfaces for our data types
+interface UserProfile {
+  id: string;
+  name: string;
+  avatar: string;
+  status?: string;
+  title?: string;
+  isGroup?: boolean;
+  members?: string[];
+}
+
+interface Message {
+  id: string;
+  senderId: string;
+  text: string;
+  timestamp: string;
+  read: boolean;
+  name?: string;
+}
+
+// Type for grouped messages by date
+interface GroupedMessages {
+  [date: string]: Message[];
+}
+
 // Mock user data
-const mockUsers = {
+const mockUsers: Record<string, UserProfile> = {
   'user1': {
     id: 'user1',
     name: 'John Smith',
@@ -40,7 +65,7 @@ const mockUsers = {
 };
 
 // Mock messages data
-const generateMockMessages = (userId) => {
+const generateMockMessages = (userId: string): Message[] => {
   const baseMessages = [
     {
       id: '1',
@@ -152,11 +177,11 @@ const generateMockMessages = (userId) => {
 export default function ConversationPage() {
   const params = useParams();
   const router = useRouter();
-  const userId = params.userId;
-  const [user, setUser] = useState(null);
-  const [messages, setMessages] = useState([]);
+  const userId = typeof params.userId === 'string' ? params.userId : '';
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const messagesEndRef = useRef(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   
   useEffect(() => {
     // In a real app, fetch user and messages from API
@@ -174,7 +199,7 @@ export default function ConversationPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
   
-  const handleSendMessage = (e) => {
+  const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
     
@@ -190,12 +215,12 @@ export default function ConversationPage() {
     setNewMessage('');
   };
   
-  const formatTime = (timestamp) => {
+  const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
   
-  const formatDate = (timestamp) => {
+  const formatDate = (timestamp: string) => {
     const date = new Date(timestamp);
     const today = new Date();
     const yesterday = new Date(today);
@@ -210,8 +235,8 @@ export default function ConversationPage() {
     }
   };
   
-  // Group messages by date
-  const groupedMessages = messages.reduce((groups, message) => {
+  // Group messages by date for display
+  const groupedMessages: GroupedMessages = messages.reduce((groups: GroupedMessages, message) => {
     const date = formatDate(message.timestamp);
     if (!groups[date]) {
       groups[date] = [];
@@ -264,7 +289,7 @@ export default function ConversationPage() {
               </div>
               <p className="text-xs text-gray-500 truncate">
                 {user.isGroup 
-                  ? `${user.members.length} members` 
+                  ? `${user.members?.length} members` 
                   : user.title || 'Available'}
               </p>
             </div>
@@ -274,13 +299,12 @@ export default function ConversationPage() {
           <div className="flex-1 bg-gray-100 p-4 overflow-y-auto">
             {Object.entries(groupedMessages).map(([date, dateMessages]) => (
               <div key={date} className="mb-6">
-                <div className="flex justify-center mb-4">
-                  <span className="px-3 py-1 bg-gray-200 rounded-full text-xs text-gray-600">
+                <div className="text-center mb-4">
+                  <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">
                     {date}
                   </span>
                 </div>
-                
-                {dateMessages.map((message) => {
+                {dateMessages.map((message: Message) => {
                   const isCurrentUser = message.senderId === 'currentUser';
                   return (
                     <div 
