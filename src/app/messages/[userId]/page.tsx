@@ -24,7 +24,6 @@ interface Message {
   text: string;
   timestamp: string;
   read: boolean;
-  name?: string;
 }
 
 // Type for grouped messages by date
@@ -64,111 +63,116 @@ const mockUsers: Record<string, UserProfile> = {
   }
 };
 
+// Helper function to create properly typed messages
+const createMessage = (message: Message): Message => {
+  return message;
+};
+
 // Mock messages data
 const generateMockMessages = (userId: string): Message[] => {
   const baseMessages = [
-    {
+    createMessage({
       id: '1',
       senderId: userId,
       text: 'Hi there! Looking forward to connecting.',
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
       read: true
-    },
-    {
+    }),
+    createMessage({
       id: '2',
       senderId: 'currentUser',
       text: 'Hello! Thanks for reaching out. What brings you to the platform?',
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 23).toISOString(),
       read: true
-    },
-    {
+    }),
+    createMessage({
       id: '3',
       senderId: userId,
       text: 'I\'m attending the upcoming tech conference and wanted to connect with other attendees beforehand.',
       timestamp: new Date(Date.now() - 1000 * 60 * 60 * 22).toISOString(),
       read: true
-    }
+    })
   ];
   
   // Add user-specific messages
   if (userId === 'user1') {
     baseMessages.push(
-      {
+      createMessage({
         id: '4',
         senderId: 'currentUser',
         text: 'Great! I\'ll be there too. Are you presenting?',
         timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
         read: true
-      },
-      {
+      }),
+      createMessage({
         id: '5',
         senderId: 'user1',
         text: 'Yes, I\'m giving a talk on AI in product development. Looking forward to the tech conference!',
         timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
         read: true
-      }
+      })
     );
   } else if (userId === 'user2') {
     baseMessages.push(
-      {
+      createMessage({
         id: '4',
         senderId: 'currentUser',
         text: 'I really enjoyed our conversation at the networking event last week.',
         timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
         read: true
-      },
-      {
+      }),
+      createMessage({
         id: '5',
         senderId: 'user2',
         text: 'Great meeting you at the networking event! Let\'s catch up soon.',
         timestamp: new Date(Date.now() - 1000 * 60 * 60 * 1).toISOString(),
         read: true
-      }
+      })
     );
   } else if (userId === 'user3') {
     baseMessages.push(
-      {
+      createMessage({
         id: '4',
         senderId: 'user3',
         text: 'I saw your profile and thought we might collaborate on a project.',
         timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
         read: true
-      },
-      {
+      }),
+      createMessage({
         id: '5',
         senderId: 'user3',
         text: 'Can we schedule a call to discuss the project?',
         timestamp: new Date(Date.now() - 1000 * 60 * 60 * 1).toISOString(),
         read: false
-      }
+      })
     );
   } else if (userId === 'user4') {
-    baseMessages.push(
-      {
-        id: '4',
-        senderId: 'groupMember1',
-        name: 'David',
-        text: 'Is everyone prepared for the meetup next week?',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-        read: true
-      },
-      {
-        id: '5',
-        senderId: 'groupMember2',
-        name: 'Emily',
-        text: 'I\'ll be bringing my presentation materials.',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
-        read: true
-      },
-      {
-        id: '6',
-        senderId: 'groupMember1',
-        name: 'David',
-        text: 'Is anyone bringing their pitch deck?',
-        timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-        read: true
-      }
-    );
+    // Create messages with explicit typing
+    const message4: Message = {
+      id: '4',
+      senderId: 'groupMember1',
+      text: 'Is everyone prepared for the meetup next week?',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
+      read: true
+    };
+    
+    const message5: Message = {
+      id: '5',
+      senderId: 'groupMember2',
+      text: 'I\'ll be bringing my presentation materials.',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
+      read: true
+    };
+    
+    const message6: Message = {
+      id: '6',
+      senderId: 'groupMember1',
+      text: 'Is anyone bringing their pitch deck?',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+      read: true
+    };
+    
+    baseMessages.push(message4, message5, message6);
   }
   
   return baseMessages;
@@ -203,13 +207,13 @@ export default function ConversationPage() {
     e.preventDefault();
     if (!newMessage.trim()) return;
     
-    const newMsg = {
+    const newMsg = createMessage({
       id: `new-${Date.now()}`,
       senderId: 'currentUser',
       text: newMessage,
       timestamp: new Date().toISOString(),
       read: false
-    };
+    });
     
     setMessages([...messages, newMsg]);
     setNewMessage('');
@@ -311,7 +315,7 @@ export default function ConversationPage() {
                       key={message.id} 
                       className={`mb-4 flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
                     >
-                      {!isCurrentUser && user.isGroup && message.name && (
+                      {!isCurrentUser && user.isGroup && (
                         <div className="flex-shrink-0 h-8 w-8 rounded-full overflow-hidden bg-gray-200 mr-2">
                           <div className="h-full w-full flex items-center justify-center">
                             <User className="h-4 w-4 text-gray-400" />
@@ -324,8 +328,12 @@ export default function ConversationPage() {
                           ? 'bg-indigo-600 text-white rounded-tl-lg rounded-tr-lg rounded-bl-lg' 
                           : 'bg-white text-gray-800 rounded-tl-lg rounded-tr-lg rounded-br-lg'
                       } px-4 py-2 shadow`}>
-                        {user.isGroup && message.name && !isCurrentUser && (
-                          <p className="text-xs font-medium text-indigo-600 mb-1">{message.name}</p>
+                        {user.isGroup && !isCurrentUser && (
+                          <p className="text-xs font-medium text-indigo-600 mb-1">
+                            {message.senderId === 'groupMember1' ? 'David' : 
+                             message.senderId === 'groupMember2' ? 'Emily' : 
+                             message.senderId}
+                          </p>
                         )}
                         <p className="text-sm">{message.text}</p>
                         <p className={`text-xs mt-1 text-right ${
