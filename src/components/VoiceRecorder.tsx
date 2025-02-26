@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useDeepgram } from '../lib/contexts/DeepgramContext';
-import { addDocument } from '../lib/firebase/firebaseUtils';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase/firebase';
 import { motion } from 'framer-motion';
 
 export default function VoiceRecorder() {
@@ -20,10 +21,14 @@ export default function VoiceRecorder() {
     
     // Save the note to Firebase
     if (realtimeTranscript) {
-      await addDocument('notes', {
-        text: realtimeTranscript,
-        timestamp: new Date().toISOString(),
-      });
+      try {
+        await addDoc(collection(db, 'notes'), {
+          text: realtimeTranscript,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error('Error saving note:', error);
+      }
     }
   };
 

@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Define interfaces for our data types
 interface Message {
+  id?: string;
   text: string;
   senderId: string;
   senderName?: string;
   timestamp: string;
+  read?: boolean;
 }
 
 interface Conversation {

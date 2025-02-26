@@ -10,9 +10,10 @@ interface Message {
   id: string;
   text: string;
   senderId: string;
-  senderName: string;
+  senderName?: string;
   timestamp: string;
   avatar?: string;
+  read?: boolean;
 }
 
 interface EventChatRoomProps {
@@ -223,7 +224,7 @@ export default function EventChatRoom({ eventId, eventTitle, isOrganizer }: Even
                     {!isCurrentUser && (
                       <div className="flex-shrink-0 h-8 w-8 rounded-full overflow-hidden bg-gray-200 mr-2">
                         {message.avatar ? (
-                          <img src={message.avatar} alt={message.senderName} className="h-full w-full object-cover" />
+                          <img src={message.avatar} alt={message.senderName || ''} className="h-full w-full object-cover" />
                         ) : (
                           <div className="h-full w-full flex items-center justify-center">
                             <User className="h-4 w-4 text-gray-400" />
