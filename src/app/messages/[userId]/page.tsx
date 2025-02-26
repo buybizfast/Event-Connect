@@ -1,6 +1,7 @@
 'use client';
 
 // Updated to fix Vercel build error - removing name property from Message interface
+// Adding this comment to force a new commit and deployment
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
