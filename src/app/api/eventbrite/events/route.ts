@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { getDoc, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase/firebase';
 
 // Eventbrite API endpoint for fetching user's events
 const EVENTBRITE_API_URL = 'https://www.eventbriteapi.com/v3';
@@ -12,9 +14,10 @@ export async function GET(request: NextRequest) {
   try {
     // Get the Eventbrite access token from cookies
     const eventbriteToken = cookies().get('eventbrite_token')?.value;
+    const userId = cookies().get('userId')?.value;
     
     // Generate a cache key
-    const cacheKey = `eventbrite_events_${eventbriteToken || 'no_token'}`;
+    const cacheKey = `eventbrite_events_${eventbriteToken || 'no_token'}_${userId || 'no_user'}`;
     
     // Check if we have a cached response and it's not expired
     const cachedResponse = responseCache.get(cacheKey);
@@ -22,8 +25,38 @@ export async function GET(request: NextRequest) {
       return cachedResponse.response;
     }
     
-    if (!eventbriteToken) {
-      console.log('Eventbrite API: No token found in cookies');
+    // If no token in cookies, try to get it from Firestore if we have a userId
+    let tokenToUse = eventbriteToken;
+    
+    if (!tokenToUse && userId) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          
+          // Check if token exists and isn't expired
+          if (userData.eventbriteToken && userData.eventbriteTokenExpiry && userData.eventbriteTokenExpiry > Date.now()) {
+            tokenToUse = userData.eventbriteToken;
+            
+            // Also set it in the cookies for future requests
+            // Ensure token is a string before setting it in cookies
+            if (tokenToUse) {
+              cookies().set('eventbrite_token', tokenToUse, { 
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                path: '/',
+                maxAge: Math.floor((userData.eventbriteTokenExpiry - Date.now()) / 1000)
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching Eventbrite token from Firestore:', error);
+      }
+    }
+    
+    if (!tokenToUse) {
+      console.log('Eventbrite API: No token found in cookies or Firestore');
       // Return authentication required status with clear message
       const response = NextResponse.json({ 
         events: [], 
@@ -39,7 +72,7 @@ export async function GET(request: NextRequest) {
       // Fetch the user's organization ID first
       const orgResponse = await fetch(`${EVENTBRITE_API_URL}/users/me/organizations`, {
         headers: {
-          'Authorization': `Bearer ${eventbriteToken}`,
+          'Authorization': `Bearer ${tokenToUse}`,
         },
       });
       
@@ -51,6 +84,22 @@ export async function GET(request: NextRequest) {
         if (status === 401) {
           console.log('Clearing invalid Eventbrite token');
           cookies().set('eventbrite_token', '', { maxAge: 0 });
+          
+          // If we have a userId, also clear the token in Firestore
+          if (userId) {
+            try {
+              const userRef = doc(db, 'users', userId);
+              await fetch('/api/eventbrite/clear-token', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ userId }),
+              });
+            } catch (clearError) {
+              console.error('Error clearing Eventbrite token:', clearError);
+            }
+          }
           
           const response = NextResponse.json({ 
             events: [], 
@@ -91,7 +140,7 @@ export async function GET(request: NextRequest) {
       // Fetch events for the organization
       const eventsResponse = await fetch(`${EVENTBRITE_API_URL}/organizations/${organizationId}/events`, {
         headers: {
-          'Authorization': `Bearer ${eventbriteToken}`,
+          'Authorization': `Bearer ${tokenToUse}`,
         },
       });
       
