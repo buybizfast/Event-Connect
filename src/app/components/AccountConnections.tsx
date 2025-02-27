@@ -51,7 +51,13 @@ export default function AccountConnections({ userId }: ConnectionsProps) {
       setMessage({ type: 'success', text: 'Verification email sent! Please check your inbox.' });
     } catch (error) {
       console.error('Error sending verification email:', error);
-      setMessage({ type: 'error', text: 'Failed to send verification email. Please try again.' });
+      // Check if this is a rate limiting error with a custom message
+      const errorMessage = String(error);
+      if (errorMessage.includes('too many verification emails')) {
+        setMessage({ type: 'error', text: 'You have requested too many verification emails. Please wait a while before trying again.' });
+      } else {
+        setMessage({ type: 'error', text: 'Failed to send verification email. Please try again later.' });
+      }
     } finally {
       setSendingVerification(false);
     }

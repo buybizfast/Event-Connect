@@ -55,7 +55,9 @@ export const suppressBrowserExtensionErrors = (): void => {
       'content.js',
       'alert-observer.js',
       'lockdown-install.js',
-      'affirm_injection.js'
+      'affirm_injection.js',
+      'A listener indicated an asynchronous response',
+      'Removing unpermitted intrinsics'
     ];
     
     // Debug log patterns to filter
@@ -308,12 +310,6 @@ export const safeFetch = async <T>(
 ): Promise<{ data: T | null; error: Error | null }> => {
   let attempts = 0;
   let lastError: Error | null = null;
-  
-  // Skip Eventbrite API calls that are likely to fail
-  if (url.includes('/api/eventbrite/')) {
-    // Return empty data for problematic APIs
-    return { data: null, error: new Error('API call skipped to prevent errors') };
-  }
   
   // Implement exponential backoff for retries
   const backoff = (attempt: number) => Math.min(100 * Math.pow(2, attempt), 3000);

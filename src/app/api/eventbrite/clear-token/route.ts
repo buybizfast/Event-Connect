@@ -10,8 +10,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
     
-    // Update user document to remove Eventbrite tokens
-    await updateDoc(doc(db, 'users', userId), {
+    // Update the user document to remove Eventbrite tokens
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
       eventbriteToken: null,
       eventbriteRefreshToken: null,
       eventbriteTokenExpiry: null

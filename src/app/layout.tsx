@@ -8,8 +8,6 @@ import DebugIndicator from "@/components/DebugIndicator";
 import "@/lib/utils/initErrorSuppression";
 import ClientErrorSuppressor from "./ClientErrorSuppressor";
 import ClearCacheButton from "@/components/ClearCacheButton";
-import EmergencyResetButton from "@/components/EmergencyResetButton";
-import DiagnosticModal from "@/components/DiagnosticModal";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -35,8 +33,6 @@ export default function RootLayout({
           <Toaster position="bottom-right" />
           <DebugIndicator />
           <ClearCacheButton />
-          <EmergencyResetButton />
-          <DiagnosticModal />
         </AuthProvider>
       </body>
     </html>

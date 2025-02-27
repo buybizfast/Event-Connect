@@ -260,6 +260,13 @@ export const resendVerificationEmail = async (user: User): Promise<void> => {
     await sendEmailVerification(user);
   } catch (error) {
     console.error("Error resending verification email:", error);
+    
+    // Check if this is a rate limiting error
+    const errorMessage = String(error);
+    if (errorMessage.includes('auth/too-many-requests')) {
+      throw new Error('You have requested too many verification emails. Please wait a while before trying again.');
+    }
+    
     throw error;
   }
 };

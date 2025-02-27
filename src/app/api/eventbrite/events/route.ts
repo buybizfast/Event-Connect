@@ -88,14 +88,18 @@ export async function GET(request: NextRequest) {
           // If we have a userId, also clear the token in Firestore
           if (userId) {
             try {
-              const userRef = doc(db, 'users', userId);
-              await fetch('/api/eventbrite/clear-token', {
+              // Clear the token in Firestore using our API endpoint
+              const clearResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/eventbrite/clear-token`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ userId }),
               });
+              
+              if (!clearResponse.ok) {
+                console.error('Failed to clear Eventbrite token:', await clearResponse.text());
+              }
             } catch (clearError) {
               console.error('Error clearing Eventbrite token:', clearError);
             }

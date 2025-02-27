@@ -129,6 +129,11 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
+    // Initialize loading to false to allow fetchUserProfile to execute
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
     if (user && !loading) {
       fetchUserProfile();
     }
@@ -144,7 +149,13 @@ export default function ProfilePage() {
       toast.success('Verification email sent! Please check your inbox.');
     } catch (error) {
       console.error('Error sending verification email:', error);
-      toast.error('Failed to send verification email. Please try again.');
+      // Check if this is a rate limiting error with a custom message
+      const errorMessage = String(error);
+      if (errorMessage.includes('too many verification emails')) {
+        toast.error('You have requested too many verification emails. Please wait a while before trying again.');
+      } else {
+        toast.error('Failed to send verification email. Please try again later.');
+      }
     } finally {
       setSendingVerification(false);
     }
