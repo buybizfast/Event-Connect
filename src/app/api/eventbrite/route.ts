@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const EVENTBRITE_API_KEY = process.env.EVENTBRITE_API_KEY;
+const EVENTBRITE_API_KEY = process.env.EVENTBRITE_PRIVATE_TOKEN || process.env.EVENTBRITE_API_KEY;
 const EVENTBRITE_API_URL = 'https://www.eventbriteapi.com/v3';
 
 export async function GET(request: NextRequest) {
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const organizationId = orgData.organizations[0].id;
     
     // Get events for the organization
-    const eventsResponse = await fetch(`${EVENTBRITE_API_URL}/organizations/${organizationId}/events`, {
+    const eventsResponse = await fetch(`${EVENTBRITE_API_URL}/organizations/${organizationId}/events?status=live,started,ended,completed&expand=venue,organizer,ticket_classes`, {
       headers: {
         'Authorization': `Bearer ${EVENTBRITE_API_KEY}`,
       },

@@ -51,6 +51,49 @@ export interface EventbriteEvent {
     };
   }>;
   eventbrite_url: string;
+  organizer?: {
+    id: string;
+    name: string;
+    description?: {
+      text?: string;
+    };
+  };
+  status?: string;
+}
+
+// Define Eventbrite attendee interface
+export interface EventbriteAttendee {
+  id: string;
+  profile: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    name: string;
+    addresses?: {
+      home?: {
+        city?: string;
+        country?: string;
+        region?: string;
+        postal_code?: string;
+        address_1?: string;
+        address_2?: string;
+      };
+      work?: {
+        city?: string;
+        country?: string;
+        region?: string;
+        postal_code?: string;
+        address_1?: string;
+        address_2?: string;
+      };
+    };
+  };
+  ticket_class_name: string;
+  status: string;
+  checked_in: boolean;
+  cancelled: boolean;
+  order_id: string;
+  refunded: boolean;
 }
 
 // Convert Eventbrite event to our app's event format
@@ -90,7 +133,7 @@ export const convertEventbriteToAppEvent = (
     time: `${formattedStartTime} - ${formattedEndTime}`,
     location: eventbriteEvent.venue?.name || 'TBD',
     address: eventbriteEvent.venue?.address?.localized_address_display || '',
-    organizer: organizerId,
+    organizer: eventbriteEvent.organizer?.name || organizerId,
     organizerId: organizerId,
     category: 'Imported from Eventbrite',
     image: eventbriteEvent.logo?.url || 'https://placehold.co/800x400',
@@ -106,7 +149,7 @@ export const convertEventbriteToAppEvent = (
 // Fetch events from Eventbrite API
 export const fetchEventbriteEvents = async (accessToken: string): Promise<EventbriteEvent[]> => {
   try {
-    const response = await fetch(`${EVENTBRITE_API_URL}/users/me/events?status=live`, {
+    const response = await fetch(`${EVENTBRITE_API_URL}/users/me/events?status=live,started,ended,completed&expand=organizer,venue`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
@@ -128,7 +171,7 @@ export const fetchEventbriteEvents = async (accessToken: string): Promise<Eventb
 // Fetch a single event from Eventbrite API
 export const fetchEventbriteEvent = async (eventId: string, accessToken: string): Promise<EventbriteEvent> => {
   try {
-    const response = await fetch(`${EVENTBRITE_API_URL}/events/${eventId}?expand=venue`, {
+    const response = await fetch(`${EVENTBRITE_API_URL}/events/${eventId}?expand=venue,organizer,ticket_classes`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
@@ -144,4 +187,40 @@ export const fetchEventbriteEvent = async (eventId: string, accessToken: string)
     console.error(`Error fetching Eventbrite event ${eventId}:`, error);
     throw error;
   }
+};
+
+// Fetch attendees for an event
+export const fetchEventbriteAttendees = async (eventId: string, accessToken: string): Promise<EventbriteAttendee[]> => {
+  try {
+    const response = await fetch(`${EVENTBRITE_API_URL}/events/${eventId}/attendees?status=attending`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Eventbrite API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.attendees;
+  } catch (error) {
+    console.error(`Error fetching Eventbrite attendees for event ${eventId}:`, error);
+    throw error;
+  }
+};
+
+// Transform Eventbrite attendees to our app's format
+export const convertEventbriteAttendees = (attendees: EventbriteAttendee[]) => {
+  return attendees.map(attendee => ({
+    id: attendee.id,
+    name: attendee.profile.name || `${attendee.profile.first_name} ${attendee.profile.last_name}`,
+    email: attendee.profile.email,
+    ticketType: attendee.ticket_class_name,
+    status: attendee.status,
+    checkedIn: attendee.checked_in,
+    city: attendee.profile.addresses?.home?.city || '',
+    source: 'eventbrite'
+  }));
 }; 

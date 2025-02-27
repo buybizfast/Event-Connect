@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const EVENTBRITE_AUTH_URL = 'https://www.eventbrite.com/oauth/authorize';
 const EVENTBRITE_TOKEN_URL = 'https://www.eventbrite.com/oauth/token';
 
-// Your Eventbrite OAuth credentials (should be stored in environment variables)
+// Your Eventbrite OAuth credentials (stored in environment variables)
 const EVENTBRITE_CLIENT_ID = process.env.EVENTBRITE_CLIENT_ID || '';
 const EVENTBRITE_CLIENT_SECRET = process.env.EVENTBRITE_CLIENT_SECRET || '';
 
