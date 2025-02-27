@@ -56,6 +56,9 @@ const handleOnline = (): void => {
       offlineNotification.style.display = 'none';
     }
   }
+  
+  // Retry any pending requests
+  retryFailedRequests();
 };
 
 /**
@@ -64,8 +67,6 @@ const handleOnline = (): void => {
 const handleOffline = (): void => {
   networkStatus.online = false;
   networkStatus.lastChecked = Date.now();
-  
-  // Show offline notification
   showOfflineNotification();
 };
 
@@ -163,6 +164,9 @@ const checkNetworkStatus = async (): Promise<void> => {
   }
 };
 
+// Store failed requests for retry
+const failedRequests: { url: string; options: RequestInit }[] = [];
+
 /**
  * Monitor network requests by overriding fetch
  */
@@ -201,6 +205,13 @@ const monitorNetworkRequests = (): void => {
         networkStatus.apiEndpointStatus[apiEndpoint].lastStatus = response.status;
       }
       
+      // If it's an Eventbrite API call that failed with a 401, trigger a token refresh
+      if (url.includes('eventbrite') && response.status === 401) {
+        await refreshEventbriteToken();
+        // Retry the original request
+        return await originalFetch.apply(this, [input, init]);
+      }
+      
       return response;
     } catch (error) {
       // Track failed request
@@ -215,6 +226,14 @@ const monitorNetworkRequests = (): void => {
         networkStatus.apiEndpointStatus[apiEndpoint].lastStatus = 0;
       }
       
+      // Store failed request for retry if it's an API call
+      if (url.includes('/api/')) {
+        failedRequests.push({
+          url,
+          options: init || {}
+        });
+      }
+      
       // Check network status on failure
       checkNetworkStatus();
       
@@ -226,47 +245,52 @@ const monitorNetworkRequests = (): void => {
 /**
  * Extract API endpoint from URL for tracking
  */
-const extractApiEndpoint = (url: string): string | null => {
+const extractApiEndpoint = (url: string): string => {
   try {
-    // Only track API endpoints
-    if (!url.includes('/api/')) return null;
-    
-    const urlObj = new URL(url, window.location.origin);
+    const urlObj = new URL(url);
     const pathParts = urlObj.pathname.split('/');
-    
-    // Get the API endpoint (e.g., /api/users)
-    if (pathParts.length >= 3 && pathParts[1] === 'api') {
-      return `/api/${pathParts[2]}`;
+    if (pathParts[1] === 'api' && pathParts[2]) {
+      return pathParts[2]; // Return the API endpoint name
     }
-    
-    return null;
-  } catch (error) {
-    return null;
+  } catch (e) {
+    // Invalid URL, ignore
+  }
+  return '';
+};
+
+/**
+ * Retry failed requests
+ */
+const retryFailedRequests = async (): Promise<void> => {
+  while (failedRequests.length > 0) {
+    const request = failedRequests.shift();
+    if (request) {
+      try {
+        await fetch(request.url, request.options);
+      } catch (error) {
+        console.error('Error retrying request:', error);
+      }
+    }
   }
 };
 
 /**
- * Get current network status
+ * Refresh Eventbrite token
  */
-export const getNetworkStatus = (): typeof networkStatus => {
-  return { ...networkStatus };
-};
-
-/**
- * Get problematic API endpoints
- */
-export const getProblematicEndpoints = (): Record<string, { success: number; failure: number; lastStatus: number }> => {
-  const problematic: Record<string, { success: number; failure: number; lastStatus: number }> = {};
-  
-  Object.entries(networkStatus.apiEndpointStatus).forEach(([endpoint, stats]) => {
-    // Consider an endpoint problematic if it has more failures than successes
-    // or if the last status was an error
-    if (stats.failure > stats.success || (stats.lastStatus >= 400 && stats.lastStatus < 600)) {
-      problematic[endpoint] = { ...stats };
+const refreshEventbriteToken = async (): Promise<void> => {
+  try {
+    const response = await fetch('/api/eventbrite/refresh-token', {
+      method: 'POST',
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to refresh token');
     }
-  });
-  
-  return problematic;
+  } catch (error) {
+    console.error('Error refreshing Eventbrite token:', error);
+    throw error;
+  }
 };
 
 /**

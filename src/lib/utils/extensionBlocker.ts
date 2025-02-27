@@ -197,7 +197,6 @@ export const applyExtensionBlocker = (): void => {
       
       // Block problematic API calls
       if (
-        url.includes('/api/eventbrite/') || 
         url.includes('serviceWorker.js')
       ) {
         return Promise.resolve(new Response(JSON.stringify({ success: false }), {
