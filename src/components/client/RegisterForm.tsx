@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Mail, Lock, User, Building2, Briefcase, Github, CircleUser, Linkedin } from 'lucide-react';
+import { Mail, Lock, User, Building2, Briefcase, Github, CircleUser } from 'lucide-react';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 export default function RegisterForm() {
@@ -14,7 +14,7 @@ export default function RegisterForm() {
   const [title, setTitle] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signUp, signInWithGoogle, signInWithGitHub, signInWithLinkedIn, user, authError } = useAuth();
+  const { signUp, signInWithGoogle, signInWithGitHub, user, authError } = useAuth();
   const router = useRouter();
 
   // Redirect to events page if user is already logged in
@@ -94,20 +94,6 @@ export default function RegisterForm() {
     } catch (err: any) {
       console.error('GitHub sign in error:', err);
       setError(err.message || 'Failed to sign in with GitHub. Please try again.');
-      setLoading(false);
-    }
-  };
-
-  const handleLinkedInSignIn = async () => {
-    setError('');
-    setLoading(true);
-    
-    try {
-      await signInWithLinkedIn();
-      // No need to redirect here as we're using redirect-based auth
-    } catch (err: any) {
-      console.error('LinkedIn sign in error:', err);
-      setError(err.message || 'Failed to sign in with LinkedIn. Please try again.');
       setLoading(false);
     }
   };
@@ -264,7 +250,7 @@ export default function RegisterForm() {
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-3 gap-3">
+          <div className="mt-6 grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={handleGoogleSignIn}
@@ -283,16 +269,6 @@ export default function RegisterForm() {
             >
               <Github className="w-5 h-5" />
               <span className="sr-only">Sign in with GitHub</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleLinkedInSignIn}
-              disabled={loading}
-              className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-            >
-              <Linkedin className="w-5 h-5" />
-              <span className="sr-only">Sign in with LinkedIn</span>
             </button>
           </div>
         </div>

@@ -217,7 +217,7 @@ export default function MessageAttendees({ eventId, onClose }: MessageAttendeesP
                           </div>
                         )}
                         <span className="text-xs text-indigo-800">{attendee.name || 'Unknown Attendee'}</span>
-                        {attendee.isVerified && (
+                        {attendee.email && attendee.email.includes('@') && (
                           <VerificationBadge size="sm" className="ml-1" />
                         )}
                         <button 
@@ -254,7 +254,7 @@ export default function MessageAttendees({ eventId, onClose }: MessageAttendeesP
                       )}
                       <div className="flex items-center">
                         <span className="text-sm text-gray-900">{attendee.name || 'Unknown Attendee'}</span>
-                        {attendee.isVerified && (
+                        {attendee.email && attendee.email.includes('@') && (
                           <VerificationBadge size="sm" className="ml-1" />
                         )}
                       </div>

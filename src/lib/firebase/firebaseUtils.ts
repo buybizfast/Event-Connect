@@ -10,6 +10,9 @@ import {
   User,
   updateProfile,
   OAuthProvider,
+  sendEmailVerification,
+  EmailAuthProvider,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import {
   doc,
@@ -32,7 +35,6 @@ interface UserProfile {
   bio?: string;
   website?: string;
   twitter?: string;
-  linkedin?: string;
   interests: string[];
   photoURL?: string;
   skills?: string[];
@@ -44,24 +46,6 @@ interface UserProfile {
     description?: string;
   }>;
   isVerified?: boolean;
-  linkedinProfile?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    name?: string;
-    profilePicture?: string;
-    headline?: string;
-    summary?: string;
-    industry?: string;
-    location?: string;
-    positions?: Array<{
-      title: string;
-      company: string;
-      startDate: string;
-      endDate?: string;
-      description?: string;
-    }>;
-  };
 }
 
 export const signUp = async (
@@ -87,11 +71,20 @@ export const signUp = async (
         title: profile.title || '',
         interests: [],
         skills: [],
-        positions: []
+        positions: [],
+        isVerified: false // Set initial verification status to false
       });
     } catch (error) {
       console.error("Error creating user profile in Firestore:", error);
       // Continue even if Firestore update fails
+    }
+    
+    // Send email verification
+    try {
+      await sendEmailVerification(user);
+    } catch (error) {
+      console.error("Error sending verification email:", error);
+      // Continue even if email verification fails
     }
     
     return user;
@@ -171,25 +164,6 @@ export const signInWithGitHub = async () => {
   }
 };
 
-export const signInWithLinkedIn = async () => {
-  try {
-    console.log('Starting LinkedIn sign-in process');
-    
-    // Check if LinkedIn client ID is configured
-    if (!process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID) {
-      console.error('LinkedIn Client ID is not configured');
-      throw new Error('LinkedIn authentication is not properly configured');
-    }
-    
-    // Instead of using Firebase's OAuthProvider, redirect to our custom API route
-    window.location.href = '/api/linkedin/auth';
-    return null;
-  } catch (error: any) {
-    console.error('LinkedIn sign-in error:', error);
-    throw error;
-  }
-};
-
 export const createUserProfile = async (userId: string, profile: Partial<UserProfile>) => {
   try {
     // Ensure all required fields are present
@@ -202,7 +176,6 @@ export const createUserProfile = async (userId: string, profile: Partial<UserPro
       bio: profile.bio,
       website: profile.website,
       twitter: profile.twitter,
-      linkedin: profile.linkedin,
       photoURL: profile.photoURL,
       skills: profile.skills || [],
       positions: profile.positions || [],
@@ -276,39 +249,31 @@ export async function getUserDocument(userId: string) {
   }
 }
 
-/**
- * Ensures a LinkedIn profile has positions data, creating a default one from headline if needed
- */
-export function ensureLinkedInPositions(profile: any) {
-  if (!profile) return null;
-  
-  // Create a copy of the profile to avoid modifying the original
-  const updatedProfile = { ...profile };
-  
-  // Initialize positions as an empty array if it doesn't exist
-  if (!updatedProfile.positions) {
-    updatedProfile.positions = [];
+// Check if user's email is verified
+export const isEmailVerified = (user: User | null): boolean => {
+  return user?.emailVerified || false;
+};
+
+// Resend verification email
+export const resendVerificationEmail = async (user: User): Promise<void> => {
+  try {
+    await sendEmailVerification(user);
+  } catch (error) {
+    console.error("Error resending verification email:", error);
+    throw error;
   }
-  
-  // If positions is empty but we have a headline, create a default position
-  if (updatedProfile.positions.length === 0 && updatedProfile.headline) {
-    updatedProfile.positions = [{
-      title: updatedProfile.headline,
-      company: updatedProfile.company || '',
-      startDate: '',
-      endDate: 'Present',
-      description: updatedProfile.summary || ''
-    }];
+};
+
+// Update user verification status in Firestore
+export const updateUserVerificationStatus = async (userId: string, isVerified: boolean): Promise<void> => {
+  try {
+    const userDocRef = doc(db, 'users', userId);
+    await updateDoc(userDocRef, {
+      isVerified,
+      verifiedAt: isVerified ? new Date().toISOString() : null
+    });
+  } catch (error) {
+    console.error("Error updating user verification status:", error);
+    throw error;
   }
-  
-  // Ensure each position has all required fields
-  updatedProfile.positions = updatedProfile.positions.map((position: any) => ({
-    title: position.title || updatedProfile.headline || '',
-    company: position.company || updatedProfile.company || '',
-    startDate: position.startDate || '',
-    endDate: position.endDate || 'Present',
-    description: position.description || ''
-  }));
-  
-  return updatedProfile;
-}
+};

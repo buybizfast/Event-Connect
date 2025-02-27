@@ -9,7 +9,6 @@ interface UserProfile {
   bio?: string;
   website?: string;
   twitter?: string;
-  linkedin?: string;
   interests: string[];
   photoURL?: string;
 }
@@ -102,7 +101,6 @@ export const mockUserProfile: UserProfile = {
   bio: 'I am a software developer with a passion for building innovative applications.',
   website: 'https://example.com',
   twitter: '@demouser',
-  linkedin: 'https://linkedin.com/in/demouser',
   interests: ['Technology', 'AI', 'Web Development', 'Networking'],
   photoURL: 'https://placehold.co/200x200'
 };

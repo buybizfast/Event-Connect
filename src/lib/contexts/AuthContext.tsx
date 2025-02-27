@@ -9,10 +9,12 @@ import {
   signOut,
   signInWithGoogle,
   signInWithGitHub,
-  signInWithLinkedIn,
   updateUserProfile,
   getUserProfile,
   handleAuthRedirectResult,
+  isEmailVerified,
+  resendVerificationEmail,
+  updateUserVerificationStatus,
 } from '@/lib/firebase/firebaseUtils';
 import { useRouter } from 'next/navigation';
 
@@ -24,9 +26,10 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<User | null>;
   signInWithGitHub: () => Promise<User | null>;
-  signInWithLinkedIn: () => Promise<User | null>;
   updateProfile: (profile: any) => Promise<void>;
   authError: string | null;
+  isEmailVerified: (user: User | null) => boolean;
+  resendVerificationEmail: (user: User) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -52,8 +55,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       setUser(user);
+      
+      // If user is logged in and email is verified, update verification status in Firestore
+      if (user && user.emailVerified) {
+        try {
+          const userProfile = await getUserProfile(user.uid);
+          if (userProfile && !userProfile.isVerified) {
+            await updateUserVerificationStatus(user.uid, true);
+          }
+        } catch (error) {
+          console.error('Error updating user verification status:', error);
+        }
+      }
+      
       setLoading(false);
     });
 
@@ -76,9 +92,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     signInWithGoogle,
     signInWithGitHub,
-    signInWithLinkedIn,
     updateProfile,
     authError,
+    isEmailVerified,
+    resendVerificationEmail,
   };
 
   return (

@@ -13,28 +13,8 @@ interface UserProfile {
   bio?: string;
   website?: string;
   twitter?: string;
-  linkedin?: string;
   interests: string[];
   photoURL?: string;
-  linkedinProfile?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    name?: string;
-    profilePicture?: string;
-    headline?: string;
-    summary?: string;
-    industry?: string;
-    location?: string;
-    profileUrl?: string;
-    positions?: Array<{
-      title: string;
-      company: string;
-      startDate: string;
-      endDate?: string;
-      description?: string;
-    }>;
-  };
 }
 
 // Define a separate interface for mock users
@@ -52,24 +32,6 @@ interface MockUser {
   photoURL?: string;
   bio?: string;
   email?: string;
-  linkedinProfile?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    profilePicture?: string;
-    headline?: string;
-    summary?: string;
-    industry?: string;
-    location?: string;
-    profileUrl?: string;
-    positions?: Array<{
-      title: string;
-      company: string;
-      startDate: string;
-      endDate?: string;
-      description?: string;
-    }>;
-  };
 }
 
 // Mock user profiles for demonstration
@@ -87,15 +49,7 @@ const mockUsers: MockUser[] = [
     connections: ['user3', 'user5'],
     email: 'john.smith@example.com',
     photoURL: 'https://example.com/john-smith.jpg',
-    bio: 'Passionate about AI and machine learning',
-    linkedinProfile: {
-      id: 'johnsmith',
-      firstName: 'John',
-      lastName: 'Smith',
-      profilePicture: 'https://example.com/john-smith.jpg',
-      headline: 'Software Engineer at TechCorp',
-      industry: 'Technology',
-    }
+    bio: 'Passionate about AI and machine learning'
   },
   {
     id: 'user2',
@@ -227,59 +181,19 @@ const generateConversationStarters = (
 ): string[] => {
   const starters: string[] = [];
   
-  // Add starters based on shared interests
-  if (matchReasons.some(reason => reason.includes('shared interests'))) {
-    const sharedInterests = userProfile.interests.filter((interest: string) => 
-      matchProfile.interests.includes(interest)
-    );
+  // Add starters based on match reasons
+  if (matchReasons.length > 0) {
+    // Use the first match reason to create a starter
+    starters.push(`I noticed we both have an interest in ${matchReasons[0]}. What aspects of that do you find most interesting?`);
     
-    if (sharedInterests.length > 0) {
-      const randomInterest = sharedInterests[Math.floor(Math.random() * sharedInterests.length)];
-      starters.push(`I noticed we both share an interest in ${randomInterest}. What aspects of it do you find most interesting?`);
-    }
-  }
-  
-  // Add starter based on job role if similar
-  if (matchReasons.some(reason => reason.includes('Similar job roles'))) {
-    starters.push(`I see you're a ${matchProfile.title}. I'm curious about your experience in that role. What projects are you currently working on?`);
-  }
-  
-  // Add starter based on company if same
-  if (matchReasons.some(reason => reason.includes('same company'))) {
-    starters.push(`I noticed we both work at ${matchProfile.company}. Which department are you in, and how long have you been with the company?`);
-  }
-  
-  // Add LinkedIn-specific starters if LinkedIn profiles are available
-  if (userProfile.linkedinProfile && matchProfile.linkedinProfile) {
-    // Add industry-specific starter if available from LinkedIn
-    if (matchReasons.some(reason => reason.includes('industry'))) {
-      starters.push(`I see we're both in the ${matchProfile.linkedinProfile.industry} industry. What trends are you most excited about right now?`);
-    }
-    
-    // Add position-specific starter if available from LinkedIn
-    if (matchProfile.linkedinProfile.positions && matchProfile.linkedinProfile.positions.length > 0) {
-      const currentPosition = matchProfile.linkedinProfile.positions[0];
-      starters.push(`I noticed on LinkedIn that you work as ${currentPosition.title} at ${currentPosition.company}. How has your experience been there?`);
-    }
-    
-    // Add location-specific starter if available
-    if (matchReasons.some(reason => reason.includes('located in'))) {
-      starters.push(`I see we're both located in ${matchProfile.linkedinProfile.location}. How do you like living there?`);
-    }
-    
-    // Add experience-based starter if they have similar work experience
-    if (matchReasons.some(reason => reason.includes('similar work experience'))) {
-      starters.push(`It looks like we have similar professional backgrounds. I'd love to hear about your career journey and how you got to where you are today.`);
-    }
-    
-    // Add summary-based starter if they have similar professional backgrounds
-    if (matchReasons.some(reason => reason.includes('professional backgrounds'))) {
-      starters.push(`Based on your LinkedIn profile, it seems we have similar professional interests. What aspects of your work are you most passionate about?`);
+    // If there are multiple match reasons, use the second one too
+    if (matchReasons.length > 1) {
+      starters.push(`I see we also share an interest in ${matchReasons[1]}. Have you been involved with that for long?`);
     }
   }
   
   // Add general industry starter
-  starters.push(`What brings you to this event/platform? Are you looking to expand your network in the ${matchProfile.industry || 'industry'}?`);
+  starters.push(`What brings you to this event/platform? Are you looking to expand your network in the industry?`);
   
   // Add career path starter
   starters.push(`I'm always interested in learning about different career paths. What led you to your current role at ${matchProfile.company}?`);
@@ -336,24 +250,12 @@ export async function GET() {
       
       // Format the matches for the frontend
       const formattedMatches = matches.map(match => {
-        // Extract LinkedIn data if available
-        const profileWithLinkedIn = match.profile as any;
-        const linkedinData = profileWithLinkedIn.linkedinProfile ? {
-          industry: profileWithLinkedIn.linkedinProfile.industry,
-          headline: profileWithLinkedIn.linkedinProfile.headline,
-          summary: profileWithLinkedIn.linkedinProfile.summary,
-          location: profileWithLinkedIn.linkedinProfile.location,
-          positions: profileWithLinkedIn.linkedinProfile.positions,
-          profileUrl: profileWithLinkedIn.linkedinProfile.profileUrl,
-        } : {};
+        // LinkedIn data has been removed
         
-        // Create conversation starters using both regular profile and LinkedIn data
+        // Create conversation starters
         const conversationStarters = generateConversationStarters(
           match.profile, 
-          {
-            ...match.profile,
-            ...linkedinData
-          },
+          match.profile,
           match.matchReasons
         );
         
@@ -366,11 +268,10 @@ export async function GET() {
           bio: match.profile.bio || '',
           interests: match.profile.interests || [],
           email: match.profile.email,
-          photoURL: match.profile.photoURL || ((profileWithLinkedIn.linkedinProfile?.profilePicture) || null),
+          photoURL: match.profile.photoURL || null,
           score: match.score,
           matchReasons: match.matchReasons,
-          conversationStarters,
-          ...linkedinData
+          conversationStarters
         };
       });
       

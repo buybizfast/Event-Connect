@@ -1,13 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { EventbriteEvent } from '@/lib/api/eventbrite';
 import { ExternalLink, RefreshCw, Plus, Check, AlertCircle } from 'lucide-react';
+import { safeFetch } from '@/lib/utils/browserUtils';
 
 // Define a type that includes the imported property
 type EventbriteEventWithImported = EventbriteEvent & { imported?: boolean };
+
+// Define the type for Eventbrite API response
+interface EventbriteApiResponse {
+  events: EventbriteEvent[];
+  authenticated: boolean;
+  authRequired?: boolean;
+  message?: string;
+  error?: string;
+}
 
 interface EventbriteIntegrationProps {
   onEventSelect?: (event: EventbriteEvent) => void;
@@ -20,6 +30,7 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
   const [importing, setImporting] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [authRequired, setAuthRequired] = useState(false);
   const { user } = useAuth();
   const router = useRouter();
 
@@ -27,40 +38,113 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const response = await fetch('/api/eventbrite/events');
-        if (response.ok) {
-          setIsConnected(true);
-          const data = await response.json();
-          setEvents(data.events || []);
-        } else {
-          setIsConnected(false);
+        setLoading(true);
+        setError(null);
+        
+        const { data, error: fetchError } = await safeFetch<EventbriteApiResponse>(
+          '/api/eventbrite/events',
+          undefined,
+          true,  // use cache busting
+          1,     // only retry once
+          true   // use stable cache busting
+        );
+        
+        if (fetchError) {
+          throw fetchError;
+        }
+        
+        if (data) {
+          if (data.authenticated) {
+            setIsConnected(true);
+            setEvents(data.events || []);
+            setAuthRequired(false);
+            
+            // Show success message if provided
+            if (data.message) {
+              setSuccess(data.message);
+            }
+          } else {
+            setIsConnected(false);
+            
+            // Check if authentication is required
+            if (data.authRequired) {
+              setAuthRequired(true);
+            }
+            
+            // If there's a message, display it
+            if (data.message) {
+              setError(data.message);
+            } else if (data.error) {
+              setError(data.error);
+            }
+          }
         }
       } catch (err) {
+        console.error('Error checking Eventbrite connection:', err);
         setIsConnected(false);
+        setError('Error connecting to Eventbrite. Please try again later.');
+      } finally {
+        setLoading(false);
       }
     };
 
     checkConnection();
   }, []);
 
-  const fetchEvents = async () => {
-    if (!isConnected) return;
+  const fetchEvents = useCallback(async () => {
+    if (!isConnected && !authRequired) return;
 
     setLoading(true);
+    setError(null);
+    setSuccess(null);
+    
     try {
-      const response = await fetch('/api/eventbrite/events');
-      if (response.ok) {
-        const data = await response.json();
-        setEvents(data.events || []);
-      } else {
-        setError('Failed to fetch Eventbrite events');
+      const { data, error: fetchError } = await safeFetch<EventbriteApiResponse>(
+        '/api/eventbrite/events',
+        undefined,
+        true,  // use cache busting
+        1,     // only retry once
+        true   // use stable cache busting
+      );
+      
+      if (fetchError) {
+        throw fetchError;
+      }
+      
+      if (data) {
+        if (data.authenticated) {
+          setIsConnected(true);
+          setEvents(data.events || []);
+          setAuthRequired(false);
+          
+          // Show success message if provided
+          if (data.message) {
+            setSuccess(data.message);
+          }
+        } else {
+          // If authentication failed, update the connection status
+          setIsConnected(false);
+          
+          // Check if authentication is required
+          if (data.authRequired) {
+            setAuthRequired(true);
+            setError(data.message || 'Your Eventbrite connection has expired. Please reconnect.');
+          } else if (data.message) {
+            setError(data.message);
+          } else if (data.error) {
+            setError(data.error);
+          } else {
+            setError('Failed to fetch Eventbrite events');
+          }
+        }
       }
     } catch (err) {
-      setError('Error fetching Eventbrite events');
+      console.error('Error fetching Eventbrite events:', err);
+      setError('Error fetching Eventbrite events. Please try again later.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [isConnected, authRequired]);
 
   // Check for URL parameters indicating connection status
   useEffect(() => {

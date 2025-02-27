@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Twitter, Facebook, Linkedin, Link, Check, X } from 'lucide-react';
+import { Twitter, Facebook, Link, Check, X } from 'lucide-react';
 
 interface SocialShareProps {
   title: string;
@@ -20,7 +20,6 @@ export default function SocialShare({ title, description, url, onClose }: Social
   const shareLinks = {
     twitter: `https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}`,
     facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
-    linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
   };
 
   const copyToClipboard = async () => {
@@ -46,49 +45,42 @@ export default function SocialShare({ title, description, url, onClose }: Social
           </button>
         )}
       </div>
-      <a
-        href={shareLinks.twitter}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-      >
-        <Twitter className="w-4 h-4 mr-3 text-blue-400" />
-        Twitter
-      </a>
-      <a
-        href={shareLinks.facebook}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-      >
-        <Facebook className="w-4 h-4 mr-3 text-blue-600" />
-        Facebook
-      </a>
-      <a
-        href={shareLinks.linkedin}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-      >
-        <Linkedin className="w-4 h-4 mr-3 text-blue-700" />
-        LinkedIn
-      </a>
-      <button
-        onClick={copyToClipboard}
-        className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-      >
-        {copied ? (
-          <>
-            <Check className="w-4 h-4 mr-3 text-green-500" />
-            Copied!
-          </>
-        ) : (
-          <>
-            <Link className="w-4 h-4 mr-3 text-gray-500" />
-            Copy link
-          </>
-        )}
-      </button>
+      <div className="flex flex-wrap gap-2 mt-4">
+        <a
+          href={shareLinks.twitter}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          <Twitter className="w-4 h-4 mr-3 text-blue-400" />
+          Twitter
+        </a>
+        <a
+          href={shareLinks.facebook}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          <Facebook className="w-4 h-4 mr-3 text-blue-600" />
+          Facebook
+        </a>
+        <button
+          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          onClick={copyToClipboard}
+        >
+          {copied ? (
+            <>
+              <Check className="w-4 h-4 mr-3 text-green-500" />
+              Copied!
+            </>
+          ) : (
+            <>
+              <Link className="w-4 h-4 mr-3 text-gray-500" />
+              Copy URL
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 } 

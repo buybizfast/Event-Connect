@@ -2,22 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
-import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
-import { Loader2, Linkedin, Calendar } from 'lucide-react';
+import { Loader2, Calendar, Mail, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface ConnectionsProps {
   userId: string;
 }
 
 export default function AccountConnections({ userId }: ConnectionsProps) {
-  const { user } = useAuth();
+  const { user, isEmailVerified, resendVerificationEmail } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [isVerified, setIsVerified] = useState(false);
   const [eventbriteConnected, setEventbriteConnected] = useState(false);
-  const [unlinkingLinkedin, setUnlinkingLinkedin] = useState(false);
   const [unlinkingEventbrite, setUnlinkingEventbrite] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const [sendingVerification, setSendingVerification] = useState(false);
 
   useEffect(() => {
     async function fetchConnections() {
@@ -27,7 +26,6 @@ export default function AccountConnections({ userId }: ConnectionsProps) {
         const userDoc = await getDoc(doc(db, 'users', userId));
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          setIsVerified(!!userData.isVerified);
           setEventbriteConnected(!!userData.eventbriteToken);
         }
       } catch (error) {
@@ -40,33 +38,22 @@ export default function AccountConnections({ userId }: ConnectionsProps) {
     fetchConnections();
   }, [userId]);
 
-  const verifyWithLinkedIn = () => {
-    window.location.href = '/api/linkedin/auth';
-  };
-
   const connectEventbrite = () => {
     window.location.href = '/api/eventbrite/auth';
   };
 
-  const removeVerification = async () => {
-    if (!userId) return;
+  const handleResendVerification = async () => {
+    if (!user) return;
     
     try {
-      setUnlinkingLinkedin(true);
-      
-      // Remove verification status from user document
-      await updateDoc(doc(db, 'users', userId), {
-        isVerified: false,
-        verifiedAt: null
-      });
-      
-      setIsVerified(false);
-      setMessage({ type: 'success', text: 'Your LinkedIn verification has been removed.' });
+      setSendingVerification(true);
+      await resendVerificationEmail(user);
+      setMessage({ type: 'success', text: 'Verification email sent! Please check your inbox.' });
     } catch (error) {
-      console.error('Error removing verification:', error);
-      setMessage({ type: 'error', text: 'There was a problem removing your verification. Please try again.' });
+      console.error('Error sending verification email:', error);
+      setMessage({ type: 'error', text: 'Failed to send verification email. Please try again.' });
     } finally {
-      setUnlinkingLinkedin(false);
+      setSendingVerification(false);
     }
   };
 
@@ -109,44 +96,43 @@ export default function AccountConnections({ userId }: ConnectionsProps) {
       <h2 className="text-2xl font-bold">Connected Accounts</h2>
       
       {message && (
-        <div className={`p-4 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+        <div className={`p-4 ${message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} rounded-md mb-4`}>
           {message.text}
         </div>
       )}
       
       <div className="grid gap-4 md:grid-cols-2">
-        {/* LinkedIn Verification */}
+        {/* Email Verification */}
         <div className="border rounded-lg p-4 shadow-sm">
           <div className="flex items-center gap-4 mb-4">
-            <Linkedin className="h-8 w-8 text-[#0077B5]" />
+            <Mail className="h-8 w-8 text-blue-500" />
             <div>
-              <h3 className="font-semibold">LinkedIn Verification</h3>
-              <p className="text-sm text-gray-500">Verify your identity with LinkedIn</p>
+              <h3 className="font-semibold">Email Verification</h3>
+              <p className="text-sm text-gray-500">Verify your account email address</p>
             </div>
           </div>
           <div className="mb-4">
-            {isVerified ? (
-              <p className="text-sm text-green-600">Verified</p>
+            {user && isEmailVerified(user) ? (
+              <div className="flex items-center text-green-600">
+                <CheckCircle className="h-4 w-4 mr-1" />
+                <p className="text-sm">Verified</p>
+              </div>
             ) : (
-              <p className="text-sm text-gray-500">Not verified</p>
+              <div className="flex items-center text-amber-600">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                <p className="text-sm">Not verified</p>
+              </div>
             )}
           </div>
           <div>
-            {isVerified ? (
+            {user && !isEmailVerified(user) && (
               <button 
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
-                onClick={removeVerification}
-                disabled={unlinkingLinkedin}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50"
+                onClick={handleResendVerification}
+                disabled={sendingVerification}
               >
-                {unlinkingLinkedin && <Loader2 className="inline mr-2 h-4 w-4 animate-spin" />}
-                Remove Verification
-              </button>
-            ) : (
-              <button 
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium"
-                onClick={verifyWithLinkedIn}
-              >
-                Verify with LinkedIn
+                {sendingVerification && <Loader2 className="inline mr-2 h-4 w-4 animate-spin" />}
+                Resend Verification Email
               </button>
             )}
           </div>

@@ -9,7 +9,6 @@ interface UserProfile {
   bio?: string;
   website?: string;
   twitter?: string;
-  linkedin?: string;
   interests: string[];
   photoURL?: string;
   isVerified?: boolean;
