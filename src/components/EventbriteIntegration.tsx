@@ -169,6 +169,7 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
   // Connect to Eventbrite
   const connectToEventbrite = () => {
     const baseUrl = getBaseUrl();
+    // Ensure the path is correct - it should match the API route structure
     window.location.href = `${baseUrl}/api/eventbrite/auth`;
   };
 

@@ -14,8 +14,8 @@ const EVENTBRITE_CLIENT_SECRET = process.env.EVENTBRITE_CLIENT_SECRET || '';
 
 // Function to get base URL
 const getBaseUrl = () => {
-  return process.env.NEXT_PUBLIC_BASE_URL || 
-    (typeof window !== 'undefined' ? window.location.origin : 'https://event-connect.vercel.app');
+  // In server components, we should only use the environment variable or a fallback
+  return process.env.NEXT_PUBLIC_BASE_URL || 'https://event-connect.vercel.app';
 };
 
 const REDIRECT_URI = `${getBaseUrl()}/api/eventbrite/callback`;

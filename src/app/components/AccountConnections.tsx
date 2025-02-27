@@ -39,8 +39,11 @@ export default function AccountConnections({ userId }: ConnectionsProps) {
   }, [userId]);
 
   const connectEventbrite = () => {
-    // Use the environment variable for the base URL or a deployed URL if available
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+    // Use a consistent approach for the base URL
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+      (typeof window !== 'undefined' ? window.location.origin : 'https://event-connect.vercel.app');
+    
+    // Ensure the path is correct - it should match the API route structure
     window.location.href = `${baseUrl}/api/eventbrite/auth`;
   };
 
