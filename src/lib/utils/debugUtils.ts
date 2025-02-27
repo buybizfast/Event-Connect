@@ -27,7 +27,6 @@ if (typeof console !== 'undefined') {
  */
 const filteredLogPatterns = [
   'User profile from Firestore',
-  'Full LinkedIn data from API',
   'heartbeats undefined',
   'User is not verified or profile not found',
   'page-',

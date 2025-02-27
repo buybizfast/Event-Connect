@@ -140,11 +140,9 @@ export const applyExtensionBlocker = (): void => {
       'Could not establish connection',
       'Receiving end does not exist',
       'The message port closed',
-      'Full LinkedIn data',
       'Object',
       'page-',
-      'User profile from Firestore',
-      'LinkedIn data from API'
+      'User profile from Firestore'
     ];
     
     // Override console.error

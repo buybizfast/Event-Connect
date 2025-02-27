@@ -25,7 +25,6 @@ const extensionErrorPatterns = [
 // Debug log patterns to filter
 const debugLogPatterns = [
   'User profile from Firestore',
-  'Full LinkedIn data from API',
   'heartbeats undefined',
   'page-',
   '.js:',
