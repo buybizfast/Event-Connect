@@ -1,5 +1,8 @@
 import { Event } from '@/lib/firebase/eventUtils';
 
+// Define Eventbrite API base URL
+const EVENTBRITE_API_URL = 'https://www.eventbriteapi.com/v3';
+
 // Define Eventbrite event interface
 export interface EventbriteEvent {
   id: string;
@@ -103,7 +106,7 @@ export const convertEventbriteToAppEvent = (
 // Fetch events from Eventbrite API
 export const fetchEventbriteEvents = async (accessToken: string): Promise<EventbriteEvent[]> => {
   try {
-    const response = await fetch('https://www.eventbriteapi.com/v3/users/me/events?status=live', {
+    const response = await fetch(`${EVENTBRITE_API_URL}/users/me/events?status=live`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
@@ -125,7 +128,7 @@ export const fetchEventbriteEvents = async (accessToken: string): Promise<Eventb
 // Fetch a single event from Eventbrite API
 export const fetchEventbriteEvent = async (eventId: string, accessToken: string): Promise<EventbriteEvent> => {
   try {
-    const response = await fetch(`https://www.eventbriteapi.com/v3/events/${eventId}?expand=venue`, {
+    const response = await fetch(`${EVENTBRITE_API_URL}/events/${eventId}?expand=venue`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'

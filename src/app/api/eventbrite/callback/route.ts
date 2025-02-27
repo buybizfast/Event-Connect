@@ -11,8 +11,15 @@ const EVENTBRITE_API_BASE = 'https://www.eventbriteapi.com/v3';
 // Your Eventbrite OAuth credentials (should be stored in environment variables)
 const EVENTBRITE_CLIENT_ID = process.env.EVENTBRITE_CLIENT_ID || '';
 const EVENTBRITE_CLIENT_SECRET = process.env.EVENTBRITE_CLIENT_SECRET || '';
-const REDIRECT_URI = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/eventbrite/callback`;
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
+// Function to get base URL
+const getBaseUrl = () => {
+  return process.env.NEXT_PUBLIC_BASE_URL || 
+    (typeof window !== 'undefined' ? window.location.origin : 'https://event-connect.vercel.app');
+};
+
+const REDIRECT_URI = `${getBaseUrl()}/api/eventbrite/callback`;
+const BASE_URL = getBaseUrl();
 
 export async function GET(request: NextRequest) {
   // Get the authorization code from the URL query parameters

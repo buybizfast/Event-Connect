@@ -9,7 +9,6 @@ import { getUserProfile, updateUserProfile } from '@/lib/firebase/firebaseUtils'
 import { uploadProfileImage } from '@/lib/firebase/storageUtils';
 import ProfileImageUpload from '@/components/ProfileImageUpload';
 import Image from 'next/image';
-import EventbriteIntegration from '@/components/EventbriteIntegration';
 import AccountConnections from '@/app/components/AccountConnections';
 import { toast } from 'react-hot-toast';
 import SkillsManager from '@/components/SkillsManager';
@@ -684,7 +683,6 @@ export default function ProfilePage() {
               {/* Right column - Account connections */}
               <div className="md:w-1/3 space-y-6">
                 <AccountConnections userId={user?.uid || ''} />
-                <EventbriteIntegration />
               </div>
             </div>
           </div>

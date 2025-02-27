@@ -57,7 +57,12 @@ export const suppressBrowserExtensionErrors = (): void => {
       'lockdown-install.js',
       'affirm_injection.js',
       'A listener indicated an asynchronous response',
-      'Removing unpermitted intrinsics'
+      'Removing unpermitted intrinsics',
+      'Failed to load resource',
+      'style-src',
+      'Refused to load the stylesheet',
+      'violated the following Content Security Policy directive',
+      'zip.co'
     ];
     
     // Debug log patterns to filter
@@ -74,7 +79,11 @@ export const suppressBrowserExtensionErrors = (): void => {
       '[communication]',
       'ALERT OBSERVER',
       'content-script',
-      'Removing unpermitted intrinsics'
+      'Removing unpermitted intrinsics',
+      'style-src',
+      'Debug mode disabled',
+      'filtering console output',
+      'ALERT OBSERVER Window'
     ];
     
     // Override console.error to filter out known extension errors

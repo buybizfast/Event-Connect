@@ -3,6 +3,12 @@ import { cookies } from 'next/headers';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 
+// Function to get base URL
+const getBaseUrl = () => {
+  return process.env.NEXT_PUBLIC_BASE_URL || 
+    (typeof window !== 'undefined' ? window.location.origin : 'https://event-connect.vercel.app');
+};
+
 // Eventbrite API endpoint for fetching user's events
 const EVENTBRITE_API_URL = 'https://www.eventbriteapi.com/v3';
 
@@ -89,7 +95,7 @@ export async function GET(request: NextRequest) {
           if (userId) {
             try {
               // Clear the token in Firestore using our API endpoint
-              const clearResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/eventbrite/clear-token`, {
+              const clearResponse = await fetch(`${getBaseUrl()}/api/eventbrite/clear-token`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',

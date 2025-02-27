@@ -7,7 +7,14 @@ const EVENTBRITE_TOKEN_URL = 'https://www.eventbrite.com/oauth/token';
 // Your Eventbrite OAuth credentials (should be stored in environment variables)
 const EVENTBRITE_CLIENT_ID = process.env.EVENTBRITE_CLIENT_ID || '';
 const EVENTBRITE_CLIENT_SECRET = process.env.EVENTBRITE_CLIENT_SECRET || '';
-const REDIRECT_URI = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/eventbrite/callback`;
+
+// Function to get base URL
+const getBaseUrl = () => {
+  return process.env.NEXT_PUBLIC_BASE_URL || 
+    (typeof window !== 'undefined' ? window.location.origin : 'https://event-connect.vercel.app');
+};
+
+const REDIRECT_URI = `${getBaseUrl()}/api/eventbrite/callback`;
 
 // Initiate OAuth flow
 export async function GET(request: NextRequest) {
@@ -15,7 +22,7 @@ export async function GET(request: NextRequest) {
   if (!EVENTBRITE_CLIENT_ID) {
     console.error('Eventbrite Client ID is not configured');
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/profile?eventbrite_error=Eventbrite%20Client%20ID%20is%20not%20configured`
+      `${getBaseUrl()}/profile?eventbrite_error=Eventbrite%20Client%20ID%20is%20not%20configured`
     );
   }
 

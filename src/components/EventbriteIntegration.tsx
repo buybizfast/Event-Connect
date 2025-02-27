@@ -34,6 +34,12 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
   const { user } = useAuth();
   const router = useRouter();
 
+  // New function to get the base URL
+  const getBaseUrl = () => {
+    return process.env.NEXT_PUBLIC_BASE_URL || 
+      (typeof window !== 'undefined' ? window.location.origin : 'https://event-connect.vercel.app');
+  };
+
   // Check if user is connected to Eventbrite
   useEffect(() => {
     const checkConnection = async () => {
@@ -41,8 +47,9 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
         setLoading(true);
         setError(null);
         
+        const baseUrl = getBaseUrl();
         const { data, error: fetchError } = await safeFetch<EventbriteApiResponse>(
-          '/api/eventbrite/events',
+          `${baseUrl}/api/eventbrite/events`,
           undefined,
           true,  // use cache busting
           1,     // only retry once
@@ -89,7 +96,7 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
     };
 
     checkConnection();
-  }, []);
+  }, [user]);
 
   const fetchEvents = useCallback(async () => {
     if (!isConnected && !authRequired) return;
@@ -99,8 +106,9 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
     setSuccess(null);
     
     try {
+      const baseUrl = getBaseUrl();
       const { data, error: fetchError } = await safeFetch<EventbriteApiResponse>(
-        '/api/eventbrite/events',
+        `${baseUrl}/api/eventbrite/events`,
         undefined,
         true,  // use cache busting
         1,     // only retry once
@@ -144,7 +152,7 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
     } finally {
       setLoading(false);
     }
-  }, [isConnected, authRequired]);
+  }, [isConnected, authRequired, user]);
 
   // Check for URL parameters indicating connection status
   useEffect(() => {
@@ -158,8 +166,10 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
     }
   }, [fetchEvents]);
 
+  // Connect to Eventbrite
   const connectToEventbrite = () => {
-    window.location.href = '/api/eventbrite/auth';
+    const baseUrl = getBaseUrl();
+    window.location.href = `${baseUrl}/api/eventbrite/auth`;
   };
 
   const importEvent = async (eventbriteId: string) => {
@@ -167,7 +177,8 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
 
     setImporting(prev => ({ ...prev, [eventbriteId]: true }));
     try {
-      const response = await fetch('/api/eventbrite/import', {
+      const baseUrl = getBaseUrl();
+      const response = await fetch(`${baseUrl}/api/eventbrite/import`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

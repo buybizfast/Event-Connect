@@ -39,7 +39,9 @@ export default function AccountConnections({ userId }: ConnectionsProps) {
   }, [userId]);
 
   const connectEventbrite = () => {
-    window.location.href = '/api/eventbrite/auth';
+    // Use the environment variable for the base URL or a deployed URL if available
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+    window.location.href = `${baseUrl}/api/eventbrite/auth`;
   };
 
   const handleResendVerification = async () => {

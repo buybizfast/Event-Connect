@@ -7,7 +7,6 @@ import ErrorSuppressor from "@/components/ErrorSuppressor";
 import DebugIndicator from "@/components/DebugIndicator";
 import "@/lib/utils/initErrorSuppression";
 import ClientErrorSuppressor from "./ClientErrorSuppressor";
-import ClearCacheButton from "@/components/ClearCacheButton";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -32,7 +31,6 @@ export default function RootLayout({
           </main>
           <Toaster position="bottom-right" />
           <DebugIndicator />
-          <ClearCacheButton />
         </AuthProvider>
       </body>
     </html>
