@@ -11,6 +11,16 @@ export function generateCsrfToken(): string {
 // Validate CSRF token
 export async function validateCsrfToken(userId: string, token: string): Promise<boolean> {
   try {
+    if (!userId || !token) {
+      console.error('Missing required parameters for CSRF validation:', { 
+        hasUserId: !!userId, 
+        hasToken: !!token 
+      });
+      return false;
+    }
+
+    console.log(`Validating CSRF token for user ${userId}`);
+    
     const userDoc = await getDoc(doc(db, 'users', userId));
     if (!userDoc.exists()) {
       console.error('User document not found during CSRF validation');
@@ -22,20 +32,35 @@ export async function validateCsrfToken(userId: string, token: string): Promise<
     const tokenExpiry = userData.eventbriteCsrfExpiry;
 
     if (!storedToken || !tokenExpiry) {
-      console.error('CSRF token or expiry not found in user document');
+      console.error('CSRF token or expiry not found in user document:', {
+        hasStoredToken: !!storedToken,
+        hasTokenExpiry: !!tokenExpiry
+      });
       return false;
     }
 
-    const isValid = storedToken === token && Date.now() < tokenExpiry;
+    const tokenMatches = storedToken === token;
+    const tokenValid = Date.now() < tokenExpiry;
     
-    if (!isValid) {
+    console.log('CSRF token validation results:', {
+      tokenMatches,
+      tokenValid,
+      tokenExpiry: new Date(tokenExpiry).toISOString(),
+      currentTime: new Date().toISOString()
+    });
+    
+    if (!tokenMatches || !tokenValid) {
       console.error('CSRF validation failed:', {
-        tokenMatch: storedToken === token,
-        expired: Date.now() >= tokenExpiry
+        tokenMatch: tokenMatches,
+        expired: !tokenValid,
+        tokenExpiry: new Date(tokenExpiry).toISOString(),
+        currentTime: new Date().toISOString()
       });
+      return false;
     }
 
-    return isValid;
+    console.log('CSRF token validation successful');
+    return true;
   } catch (error) {
     console.error('Error validating CSRF token:', error);
     return false;
@@ -50,9 +75,24 @@ export async function storeEventbriteTokens(
   expiresIn: number
 ): Promise<void> {
   try {
-    if (!userId || !accessToken || !refreshToken || !expiresIn) {
-      throw new Error('Missing required parameters for token storage');
+    // Validate input parameters
+    if (!userId) {
+      throw new Error('Missing userId for token storage');
     }
+    
+    if (!accessToken) {
+      throw new Error('Missing accessToken for token storage');
+    }
+    
+    if (!refreshToken) {
+      throw new Error('Missing refreshToken for token storage');
+    }
+    
+    if (!expiresIn || isNaN(expiresIn)) {
+      throw new Error(`Invalid expiresIn value: ${expiresIn}`);
+    }
+
+    console.log(`Storing Eventbrite tokens for user ${userId} with expiry of ${expiresIn} seconds`);
 
     const tokenExpiry = Date.now() + (expiresIn * 1000);
     const userRef = doc(db, 'users', userId);
@@ -61,6 +101,7 @@ export async function storeEventbriteTokens(
     const userDoc = await getDoc(userRef);
     
     if (!userDoc.exists()) {
+      console.log(`Creating new user document for ${userId} with Eventbrite tokens`);
       // Create new user document if it doesn't exist
       await setDoc(userRef, {
         eventbriteToken: accessToken,
@@ -73,6 +114,7 @@ export async function storeEventbriteTokens(
         updatedAt: Date.now()
       });
     } else {
+      console.log(`Updating existing user document for ${userId} with new Eventbrite tokens`);
       // Update existing document
       await updateDoc(userRef, {
         eventbriteToken: accessToken,
@@ -93,6 +135,8 @@ export async function storeEventbriteTokens(
       secure: true,
       sameSite: 'lax'
     });
+    
+    console.log(`Successfully stored Eventbrite tokens for user ${userId}`);
   } catch (error) {
     console.error('Error storing Eventbrite tokens:', error);
     throw error;
@@ -159,10 +203,19 @@ export async function refreshEventbriteToken(userId: string): Promise<boolean> {
       return false;
     }
 
-    if (!process.env.EVENTBRITE_CLIENT_ID || !process.env.EVENTBRITE_CLIENT_SECRET) {
+    // For testing purposes, hardcoding the credentials
+    const clientId = process.env.EVENTBRITE_CLIENT_ID || 'JHEEX22OX2CXXUZ37B';
+    const clientSecret = process.env.EVENTBRITE_CLIENT_SECRET || 'BDZJQUIY57AXYTBWHFVQGSZP3OZTOHGIDTQQNEH3UUJNDGR5C3';
+
+    if (!clientId || !clientSecret) {
       console.error('Missing Eventbrite credentials in environment');
       return false;
     }
+
+    console.log('Refreshing token with credentials:', {
+      clientIdExists: !!clientId,
+      clientSecretExists: !!clientSecret
+    });
 
     const response = await fetch('https://www.eventbrite.com/oauth/token', {
       method: 'POST',
@@ -172,8 +225,8 @@ export async function refreshEventbriteToken(userId: string): Promise<boolean> {
       body: new URLSearchParams({
         grant_type: 'refresh_token',
         refresh_token: refreshToken,
-        client_id: process.env.EVENTBRITE_CLIENT_ID,
-        client_secret: process.env.EVENTBRITE_CLIENT_SECRET,
+        client_id: clientId,
+        client_secret: clientSecret,
       }),
     });
 

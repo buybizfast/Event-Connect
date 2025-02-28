@@ -7,8 +7,16 @@ import { getBaseUrl } from '@/lib/utils/urlUtils';
 const EVENTBRITE_TOKEN_URL = 'https://www.eventbrite.com/oauth/token';
 
 // Your Eventbrite OAuth credentials
-const EVENTBRITE_CLIENT_ID = process.env.EVENTBRITE_CLIENT_ID;
-const EVENTBRITE_CLIENT_SECRET = process.env.EVENTBRITE_CLIENT_SECRET;
+// For testing purposes, hardcoding the credentials to see if this resolves the issue
+const EVENTBRITE_CLIENT_ID = process.env.EVENTBRITE_CLIENT_ID || 'JHEEX22OX2CXXUZ37B';
+const EVENTBRITE_CLIENT_SECRET = process.env.EVENTBRITE_CLIENT_SECRET || 'BDZJQUIY57AXYTBWHFVQGSZP3OZTOHGIDTQQNEH3UUJNDGR5C3';
+
+console.log('Eventbrite credentials check:', {
+  clientIdExists: !!EVENTBRITE_CLIENT_ID,
+  clientSecretExists: !!EVENTBRITE_CLIENT_SECRET,
+  clientIdFromEnv: !!process.env.EVENTBRITE_CLIENT_ID,
+  clientSecretFromEnv: !!process.env.EVENTBRITE_CLIENT_SECRET
+});
 
 if (!EVENTBRITE_CLIENT_ID || !EVENTBRITE_CLIENT_SECRET) {
   console.error('Missing required Eventbrite credentials in environment variables');
@@ -23,6 +31,14 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get('code');
     const error = searchParams.get('error');
     const stateParam = searchParams.get('state');
+
+    // Log the received parameters for debugging
+    console.log('Eventbrite callback received:', { 
+      code: code ? 'present' : 'missing', 
+      error: error || 'none', 
+      state: stateParam ? 'present' : 'missing',
+      url: request.url
+    });
 
     // Handle errors from Eventbrite
     if (error) {
@@ -46,6 +62,8 @@ export async function GET(request: NextRequest) {
       const state = JSON.parse(decodeURIComponent(stateParam));
       csrfToken = state.csrfToken;
       userId = state.userId;
+      
+      console.log('Parsed state parameter:', { userId, csrfTokenLength: csrfToken?.length });
     } catch (error) {
       console.error('Error parsing state parameter:', error);
       return NextResponse.redirect(
@@ -54,6 +72,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Validate CSRF token
+    console.log('Validating CSRF token for user:', userId);
     const isValidCsrf = await validateCsrfToken(userId, csrfToken);
     if (!isValidCsrf) {
       console.error('CSRF validation failed for user:', userId);
@@ -70,7 +89,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Prepare redirect URI - ensure it matches exactly what's configured in Eventbrite
+    // Using the exact URL from the authorization request for consistency
+    const redirectUri = 'https://event-connect-git-main-mindfulelementsinc-gmailcoms-projects.vercel.app/api/eventbrite/callback';
+    console.log('Using redirect URI:', redirectUri);
+
     // Exchange code for access token
+    console.log('Exchanging code for access token...');
     const tokenResponse = await fetch(EVENTBRITE_TOKEN_URL, {
       method: 'POST',
       headers: {
@@ -81,7 +106,7 @@ export async function GET(request: NextRequest) {
         client_id: EVENTBRITE_CLIENT_ID,
         client_secret: EVENTBRITE_CLIENT_SECRET,
         grant_type: 'authorization_code',
-        redirect_uri: `${baseUrl}/api/eventbrite/callback`,
+        redirect_uri: redirectUri,
       }),
     });
 
@@ -93,13 +118,15 @@ export async function GET(request: NextRequest) {
         error: errorText
       });
       return NextResponse.redirect(
-        `${baseUrl}/profile?eventbrite_error=Failed%20to%20exchange%20code%20for%20token`
+        `${baseUrl}/profile?eventbrite_error=${encodeURIComponent(`Token exchange failed: ${tokenResponse.status} ${tokenResponse.statusText}`)}`
       );
     }
 
     const tokenData = await tokenResponse.json();
+    console.log('Successfully received token data');
 
     // Store tokens in Firestore
+    console.log('Storing tokens for user:', userId);
     await storeEventbriteTokens(
       userId,
       tokenData.access_token,
@@ -112,13 +139,16 @@ export async function GET(request: NextRequest) {
     cookieStore.delete('eventbrite_csrf_token');
 
     // Redirect back to profile with success
+    console.log('OAuth flow completed successfully');
     return NextResponse.redirect(
       `${baseUrl}/profile?eventbrite_connected=true`
     );
   } catch (error) {
+    // Provide more detailed error information
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in OAuth callback:', error);
     return NextResponse.redirect(
-      `${baseUrl}/profile?eventbrite_error=Internal%20server%20error`
+      `${baseUrl}/profile?eventbrite_error=${encodeURIComponent(`Internal server error: ${errorMessage}`)}`
     );
   }
 } 
