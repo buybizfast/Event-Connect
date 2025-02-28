@@ -17,10 +17,14 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('Fetching Eventbrite events...');
+    
     // Get user ID from cookies
     const userId = cookies().get('userId')?.value;
+    console.log('User ID from cookies:', userId);
     
     if (!userId) {
+      console.log('No user ID found');
       return NextResponse.json({
         events: [],
         authenticated: false,
@@ -30,8 +34,12 @@ export async function GET(request: NextRequest) {
     }
     
     // Check if token is valid
+    console.log('Checking token validity...');
     const isValid = await isEventbriteTokenValid(userId);
+    console.log('Token valid:', isValid);
+    
     if (!isValid) {
+      console.log('Token invalid or expired');
       return NextResponse.json({
         events: [],
         authenticated: false,
@@ -41,8 +49,11 @@ export async function GET(request: NextRequest) {
     }
     
     // Get tokens from Firestore
+    console.log('Getting tokens from Firestore...');
     const tokens = await getEventbriteTokens(userId);
+    
     if (!tokens) {
+      console.log('No tokens found in Firestore');
       return NextResponse.json({
         events: [],
         authenticated: false,
@@ -51,8 +62,11 @@ export async function GET(request: NextRequest) {
       }, { status: 401 });
     }
     
+    console.log('Tokens retrieved successfully');
+    
     // If we have an organization ID, use it to fetch events
     if (tokens.organizationId) {
+      console.log('Fetching events for organization:', tokens.organizationId);
       const eventsResponse = await fetch(
         `${EVENTBRITE_API_URL}/organizations/${tokens.organizationId}/events?status=live,started,ended,completed&expand=venue,organizer,ticket_classes`,
         {
@@ -64,6 +78,7 @@ export async function GET(request: NextRequest) {
       
       if (!eventsResponse.ok) {
         if (eventsResponse.status === 401) {
+          console.log('Token expired during event fetch');
           return NextResponse.json({
             events: [],
             authenticated: false,
@@ -72,10 +87,13 @@ export async function GET(request: NextRequest) {
           }, { status: 401 });
         }
         
+        const errorText = await eventsResponse.text();
+        console.error('Error fetching organization events:', errorText);
         throw new Error(`Failed to fetch events: ${eventsResponse.statusText}`);
       }
       
       const eventsData = await eventsResponse.json();
+      console.log(`Found ${eventsData.events?.length || 0} events for organization`);
       
       return NextResponse.json({
         events: eventsData.events,
@@ -85,6 +103,7 @@ export async function GET(request: NextRequest) {
     }
     
     // If no organization ID, try to fetch user's events directly
+    console.log('No organization ID, fetching user events directly');
     const eventsResponse = await fetch(
       `${EVENTBRITE_API_URL}/users/me/events?status=live,started,ended,completed&expand=venue,organizer,ticket_classes`,
       {
@@ -96,6 +115,7 @@ export async function GET(request: NextRequest) {
     
     if (!eventsResponse.ok) {
       if (eventsResponse.status === 401) {
+        console.log('Token expired during event fetch');
         return NextResponse.json({
           events: [],
           authenticated: false,
@@ -104,10 +124,13 @@ export async function GET(request: NextRequest) {
         }, { status: 401 });
       }
       
+      const errorText = await eventsResponse.text();
+      console.error('Error fetching user events:', errorText);
       throw new Error(`Failed to fetch events: ${eventsResponse.statusText}`);
     }
     
     const eventsData = await eventsResponse.json();
+    console.log(`Found ${eventsData.events?.length || 0} events for user`);
     
     return NextResponse.json({
       events: eventsData.events,

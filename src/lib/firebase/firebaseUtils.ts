@@ -170,19 +170,25 @@ export const signInWithGitHub = async () => {
 
 export const createUserProfile = async (userId: string, profile: Partial<UserProfile>) => {
   try {
-    // Ensure all required fields are present
+    // Ensure all required fields are present with default values
     const userProfile: UserProfile = {
       displayName: profile.displayName || '',
       email: profile.email || '',
       company: profile.company || '',
       title: profile.title || '',
       interests: profile.interests || [],
-      bio: profile.bio,
-      website: profile.website,
-      twitter: profile.twitter,
-      photoURL: profile.photoURL,
+      bio: profile.bio || '',  // Default to empty string instead of undefined
+      website: profile.website || '',  // Default to empty string instead of undefined
+      twitter: profile.twitter || '',  // Default to empty string instead of undefined
+      photoURL: profile.photoURL || '',  // Default to empty string instead of undefined
       skills: profile.skills || [],
       positions: profile.positions || [],
+      isVerified: profile.isVerified || false,
+      // Add Eventbrite fields as undefined
+      eventbriteToken: undefined,
+      eventbriteRefreshToken: undefined,
+      eventbriteTokenExpiry: undefined,
+      eventbriteOrganizationId: undefined
     };
     
     await setDoc(doc(db, 'users', userId), userProfile);

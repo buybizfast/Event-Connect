@@ -18,6 +18,8 @@ const getBaseUrl = () => {
 const REDIRECT_URI = `${getBaseUrl()}/api/eventbrite/callback`;
 
 export async function GET(request: NextRequest) {
+  console.log('Eventbrite callback received');
+  
   // Get the authorization code from the URL query parameters
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
@@ -26,6 +28,8 @@ export async function GET(request: NextRequest) {
   
   // Get user ID from cookies
   const userId = cookies().get('userId')?.value;
+  
+  console.log('Callback params:', { code: code?.substring(0, 5) + '...', error, state, userId });
   
   if (!userId) {
     console.error('No user ID found in cookies');
@@ -52,7 +56,7 @@ export async function GET(request: NextRequest) {
   // Verify CSRF token
   const storedCsrfToken = cookies().get('eventbrite_oauth_state')?.value;
   if (!csrfToken || !storedCsrfToken || csrfToken !== storedCsrfToken) {
-    console.error('CSRF token validation failed');
+    console.error('CSRF token validation failed', { csrfToken, storedCsrfToken });
     return NextResponse.redirect(`${getBaseUrl()}/profile?eventbrite_error=csrf_validation_failed`);
   }
   
@@ -77,6 +81,8 @@ export async function GET(request: NextRequest) {
   }
   
   try {
+    console.log('Exchanging code for token...');
+    
     // Exchange the authorization code for an access token
     const tokenResponse = await fetch(EVENTBRITE_TOKEN_URL, {
       method: 'POST',
@@ -103,8 +109,10 @@ export async function GET(request: NextRequest) {
     }
     
     const tokenData = await tokenResponse.json();
+    console.log('Token exchange successful');
     
     // Get the organization ID
+    console.log('Fetching organization ID...');
     const orgResponse = await fetch(`${EVENTBRITE_API_BASE}/users/me/organizations`, {
       headers: {
         'Authorization': `Bearer ${tokenData.access_token}`,
@@ -116,16 +124,24 @@ export async function GET(request: NextRequest) {
       const orgData = await orgResponse.json();
       if (orgData.organizations && orgData.organizations.length > 0) {
         organizationId = orgData.organizations[0].id;
+        console.log('Organization ID found:', organizationId);
+      } else {
+        console.log('No organizations found');
       }
+    } else {
+      console.error('Error fetching organization:', await orgResponse.text());
     }
     
     // Store tokens in Firestore
+    console.log('Storing tokens in Firestore...');
     await storeEventbriteTokens(userId, {
       accessToken: tokenData.access_token,
       refreshToken: tokenData.refresh_token,
       expiresIn: tokenData.expires_in,
       organizationId
     });
+    
+    console.log('Tokens stored successfully');
     
     // Set success cookie and redirect
     const response = NextResponse.redirect(
