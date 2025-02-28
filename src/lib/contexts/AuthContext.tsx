@@ -66,14 +66,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!userDoc) {
             // Create user document if it doesn't exist
             await createUserProfile(user.uid, {
+              id: user.uid,
               displayName: user.displayName || '',
               email: user.email || '',
+              photoURL: user.photoURL || '',
               company: '',
               title: '',
+              bio: '',
               interests: [],
               skills: [],
               positions: [],
-              isVerified: user.emailVerified
+              isVerified: user.emailVerified,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              eventbriteToken: null,
+              eventbriteRefreshToken: null,
+              eventbriteTokenExpiry: null
             });
           }
           

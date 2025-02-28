@@ -150,6 +150,12 @@ export async function GET(request: NextRequest) {
         // Ensure the user document exists and get its reference
         const userRef = await ensureUserDocument(userId);
         
+        // Get the user's current data
+        const userDoc = await getDoc(userRef);
+        if (!userDoc.exists()) {
+          throw new Error('User document not found after creation');
+        }
+
         // Store the token in the user's document
         await updateDoc(userRef, {
           eventbriteToken: access_token,
@@ -157,16 +163,36 @@ export async function GET(request: NextRequest) {
           eventbriteTokenExpiry: Date.now() + (expires_in * 1000),
           updatedAt: Date.now()
         });
+
+        // Verify the token was stored by reading it back
+        const updatedDoc = await getDoc(userRef);
+        if (!updatedDoc.exists() || !updatedDoc.data()?.eventbriteToken) {
+          throw new Error('Failed to verify token storage');
+        }
         
         // If we have an eventId, update the event with Eventbrite data
         if (eventId) {
-          // This would be implemented based on your event update logic
-          // await updateEventWithEventbriteData(eventId, access_token);
+          try {
+            await updateEvent(eventId, {
+              eventbriteConnected: true,
+              eventbriteId: undefined, // Will be updated when fetching event details
+              updatedAt: Date.now()
+            });
+          } catch (err) {
+            console.error('Error updating event with Eventbrite connection:', err);
+          }
         }
       } catch (err) {
         console.error('Error storing Eventbrite token in Firestore:', err);
-        // Even if storing in Firestore fails, we'll continue since we have the cookie
+        return NextResponse.redirect(
+          `${BASE_URL}/profile?eventbrite_error=${encodeURIComponent('Failed to store Eventbrite connection. Please try again.')}`
+        );
       }
+    } else {
+      console.error('No userId found in cookies');
+      return NextResponse.redirect(
+        `${BASE_URL}/profile?eventbrite_error=${encodeURIComponent('User not authenticated. Please sign in and try again.')}`
+      );
     }
     
     return response;

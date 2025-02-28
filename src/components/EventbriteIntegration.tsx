@@ -26,6 +26,35 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
     return window.location.origin;
   };
 
+  // Check connection status and fetch events on component mount
+  useEffect(() => {
+    const checkConnectionStatus = async () => {
+      if (!user) return;
+      
+      try {
+        const baseUrl = getBaseUrl();
+        const response = await fetch(`${baseUrl}/api/eventbrite/status?userId=${user.uid}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          setIsConnected(data.isConnected || false);
+          if (data.isConnected) {
+            fetchEvents();
+          }
+        } else {
+          setError(data.message || 'Failed to check Eventbrite connection status');
+          setIsConnected(false);
+        }
+      } catch (err) {
+        console.error('Error checking Eventbrite connection status:', err);
+        setError('Error checking Eventbrite connection. Please try again.');
+        setIsConnected(false);
+      }
+    };
+
+    checkConnectionStatus();
+  }, [user]);
+
   // Fetch events from Eventbrite
   const fetchEvents = async () => {
     if (!user) {
@@ -35,6 +64,7 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
     
     setLoading(true);
     setError(null);
+    setSuccess(null);
     
     try {
       const baseUrl = getBaseUrl();
@@ -51,12 +81,12 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
         }
       } else {
         setEvents([]);
-        setError(data.message || data.error || 'Failed to fetch events');
         
-        // If authentication is required, update the connection status
         if (data.authRequired) {
           setIsConnected(false);
-          setError('Please connect your Eventbrite account to continue');
+          setError('Please reconnect your Eventbrite account to continue');
+        } else {
+          setError(data.message || data.error || 'Failed to fetch events');
         }
       }
     } catch (err) {
@@ -95,13 +125,6 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
       onEventSelect(event);
     }
   };
-
-  // Check connection status and fetch events on component mount
-  useEffect(() => {
-    if (user) {
-      fetchEvents();
-    }
-  }, [user]);
 
   // Check for URL parameters indicating connection status
   useEffect(() => {
