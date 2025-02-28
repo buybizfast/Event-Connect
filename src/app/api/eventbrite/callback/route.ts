@@ -15,7 +15,7 @@ const EVENTBRITE_CLIENT_SECRET = process.env.EVENTBRITE_CLIENT_SECRET || '';
 // Function to get base URL
 const getBaseUrl = () => {
   // In server components, we should only use the environment variable or a fallback
-  return process.env.NEXT_PUBLIC_BASE_URL || 'https://event-connect.vercel.app';
+  return process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 };
 
 const REDIRECT_URI = `${getBaseUrl()}/api/eventbrite/callback`;
@@ -71,7 +71,8 @@ export async function GET(request: NextRequest) {
   // Check if Eventbrite credentials are configured
   if (!EVENTBRITE_CLIENT_ID || !EVENTBRITE_CLIENT_SECRET) {
     console.error('Eventbrite credentials are not configured');
-    return NextResponse.redirect(`${BASE_URL}/profile?eventbrite_error=credentials_not_configured`);
+    const errorMessage = encodeURIComponent('Eventbrite credentials are not configured. Please check your environment variables.');
+    return NextResponse.redirect(`${BASE_URL}/profile?eventbrite_error=${errorMessage}`);
   }
   
   try {
@@ -93,10 +94,11 @@ export async function GET(request: NextRequest) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.json().catch(() => ({ error: 'Unknown error' }));
       console.error('Error exchanging code for token:', errorData);
+      const errorMessage = encodeURIComponent(errorData.error_description || errorData.error || 'Failed to exchange code for token');
       if (eventId) {
-        return NextResponse.redirect(`${BASE_URL}/events/${eventId}?eventbrite_error=token_exchange_failed`);
+        return NextResponse.redirect(`${BASE_URL}/events/${eventId}?eventbrite_error=${errorMessage}`);
       }
-      return NextResponse.redirect(`${BASE_URL}/profile?eventbrite_error=token_exchange_failed`);
+      return NextResponse.redirect(`${BASE_URL}/profile?eventbrite_error=${errorMessage}`);
     }
     
     const tokenData = await tokenResponse.json();
@@ -139,9 +141,10 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('Error in Eventbrite callback:', error);
+    const errorMessage = encodeURIComponent('Internal server error during OAuth callback');
     if (eventId) {
-      return NextResponse.redirect(`${BASE_URL}/events/${eventId}?eventbrite_error=server_error`);
+      return NextResponse.redirect(`${BASE_URL}/events/${eventId}?eventbrite_error=${errorMessage}`);
     }
-    return NextResponse.redirect(`${BASE_URL}/profile?eventbrite_error=server_error`);
+    return NextResponse.redirect(`${BASE_URL}/profile?eventbrite_error=${errorMessage}`);
   }
 } 
