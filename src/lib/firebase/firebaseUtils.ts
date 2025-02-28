@@ -177,18 +177,17 @@ export const createUserProfile = async (userId: string, profile: Partial<UserPro
       company: profile.company || '',
       title: profile.title || '',
       interests: profile.interests || [],
-      bio: profile.bio || '',  // Default to empty string instead of undefined
-      website: profile.website || '',  // Default to empty string instead of undefined
-      twitter: profile.twitter || '',  // Default to empty string instead of undefined
-      photoURL: profile.photoURL || '',  // Default to empty string instead of undefined
+      bio: '',  // Always set to empty string
+      website: '',  // Always set to empty string
+      twitter: '',  // Always set to empty string
+      photoURL: '',  // Always set to empty string
       skills: profile.skills || [],
       positions: profile.positions || [],
       isVerified: profile.isVerified || false,
-      // Add Eventbrite fields as undefined
-      eventbriteToken: undefined,
-      eventbriteRefreshToken: undefined,
-      eventbriteTokenExpiry: undefined,
-      eventbriteOrganizationId: undefined
+      eventbriteToken: '',  // Always set to empty string
+      eventbriteRefreshToken: '',  // Always set to empty string
+      eventbriteTokenExpiry: 0,  // Always set to 0
+      eventbriteOrganizationId: ''  // Always set to empty string
     };
     
     await setDoc(doc(db, 'users', userId), userProfile);
