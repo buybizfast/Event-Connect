@@ -18,6 +18,7 @@ import {
   createUserProfile,
 } from '@/lib/firebase/firebaseUtils';
 import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
 
 interface UserProfile {
   id?: string;
@@ -88,6 +89,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(user);
       
       if (user) {
+        // Store user ID in cookie
+        Cookies.set('userId', user.uid, { 
+          expires: 7, // 7 days
+          path: '/',
+          secure: true,
+          sameSite: 'lax'
+        });
+        
         try {
           // Check if user document exists
           const userDoc = await getUserProfile(user.uid);
@@ -128,6 +137,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
           console.error('Error ensuring user document exists:', error);
         }
+      } else {
+        // Remove user ID cookie when logged out
+        Cookies.remove('userId', { path: '/' });
       }
       
       setLoading(false);
