@@ -50,6 +50,8 @@ interface UserProfile {
   eventbriteRefreshToken?: string;
   eventbriteTokenExpiry?: number;
   eventbriteOrganizationId?: string;
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export const signUp = async (
@@ -187,7 +189,9 @@ export const createUserProfile = async (userId: string, profile: Partial<UserPro
       eventbriteToken: '',  // Always set to empty string
       eventbriteRefreshToken: '',  // Always set to empty string
       eventbriteTokenExpiry: 0,  // Always set to 0
-      eventbriteOrganizationId: ''  // Always set to empty string
+      eventbriteOrganizationId: '',  // Always set to empty string
+      createdAt: Date.now(),
+      updatedAt: Date.now()
     };
     
     await setDoc(doc(db, 'users', userId), userProfile);

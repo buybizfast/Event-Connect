@@ -19,6 +19,34 @@ import {
 } from '@/lib/firebase/firebaseUtils';
 import { useRouter } from 'next/navigation';
 
+interface UserProfile {
+  id?: string;
+  displayName: string;
+  email: string;
+  company: string;
+  title: string;
+  bio?: string;
+  website?: string;
+  twitter?: string;
+  interests: string[];
+  photoURL?: string;
+  skills?: string[];
+  positions?: Array<{
+    title: string;
+    company: string;
+    startDate: string;
+    endDate?: string;
+    description?: string;
+  }>;
+  isVerified?: boolean;
+  eventbriteToken?: string;
+  eventbriteRefreshToken?: string;
+  eventbriteTokenExpiry?: number;
+  eventbriteOrganizationId?: string;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -79,9 +107,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               isVerified: user.emailVerified,
               createdAt: Date.now(),
               updatedAt: Date.now(),
-              eventbriteToken: null,
-              eventbriteRefreshToken: null,
-              eventbriteTokenExpiry: null
+              eventbriteToken: '',
+              eventbriteRefreshToken: '',
+              eventbriteTokenExpiry: 0,
+              eventbriteOrganizationId: ''
             });
           }
           
