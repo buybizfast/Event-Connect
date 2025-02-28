@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { updateEvent } from '@/lib/firebase/eventUtils';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 
 // Eventbrite OAuth token endpoint
@@ -20,6 +20,25 @@ const getBaseUrl = () => {
 
 const REDIRECT_URI = `${getBaseUrl()}/api/eventbrite/callback`;
 const BASE_URL = getBaseUrl();
+
+// Helper function to ensure user document exists
+async function ensureUserDocument(userId: string) {
+  const userRef = doc(db, 'users', userId);
+  const userDoc = await getDoc(userRef);
+  
+  if (!userDoc.exists()) {
+    // Create the user document with basic fields
+    await setDoc(userRef, {
+      id: userId,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      eventbriteToken: null,
+      eventbriteRefreshToken: null,
+      eventbriteTokenExpiry: null
+    });
+  }
+  return userRef;
+}
 
 export async function GET(request: NextRequest) {
   // Get the authorization code from the URL query parameters
@@ -121,11 +140,15 @@ export async function GET(request: NextRequest) {
     const userId = request.cookies.get('userId')?.value;
     if (userId) {
       try {
+        // Ensure the user document exists and get its reference
+        const userRef = await ensureUserDocument(userId);
+        
         // Store the token in the user's document
-        await updateDoc(doc(db, 'users', userId), {
+        await updateDoc(userRef, {
           eventbriteToken: access_token,
           eventbriteRefreshToken: refresh_token,
-          eventbriteTokenExpiry: Date.now() + (expires_in * 1000)
+          eventbriteTokenExpiry: Date.now() + (expires_in * 1000),
+          updatedAt: Date.now()
         });
         
         // If we have an eventId, update the event with Eventbrite data
@@ -135,6 +158,7 @@ export async function GET(request: NextRequest) {
         }
       } catch (err) {
         console.error('Error storing Eventbrite token in Firestore:', err);
+        // Even if storing in Firestore fails, we'll continue since we have the cookie
       }
     }
     
