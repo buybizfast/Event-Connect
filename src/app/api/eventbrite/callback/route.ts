@@ -15,13 +15,14 @@ if (!EVENTBRITE_CLIENT_ID || !EVENTBRITE_CLIENT_SECRET) {
 }
 
 export async function GET(request: NextRequest) {
+  const baseUrl = getBaseUrl();
+  
   try {
     // Get query parameters
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get('code');
     const error = searchParams.get('error');
     const stateParam = searchParams.get('state');
-    const baseUrl = getBaseUrl();
 
     // Handle errors from Eventbrite
     if (error) {
@@ -117,7 +118,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error in OAuth callback:', error);
     return NextResponse.redirect(
-      `${getBaseUrl()}/profile?eventbrite_error=Internal%20server%20error`
+      `${baseUrl}/profile?eventbrite_error=Internal%20server%20error`
     );
   }
 } 

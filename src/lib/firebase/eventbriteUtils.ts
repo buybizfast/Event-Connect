@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { cookies } from 'next/headers';
 
@@ -55,16 +55,35 @@ export async function storeEventbriteTokens(
     }
 
     const tokenExpiry = Date.now() + (expiresIn * 1000);
+    const userRef = doc(db, 'users', userId);
     
-    // Store in Firebase
-    await setDoc(doc(db, 'users', userId), {
-      eventbriteToken: accessToken,
-      eventbriteRefreshToken: refreshToken,
-      eventbriteTokenExpiry: tokenExpiry,
-      eventbriteTokenUpdatedAt: Date.now(),
-      eventbriteCsrfToken: null,
-      eventbriteCsrfExpiry: null,
-    }, { merge: true });
+    // Get the current user document
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      // Create new user document if it doesn't exist
+      await setDoc(userRef, {
+        eventbriteToken: accessToken,
+        eventbriteRefreshToken: refreshToken,
+        eventbriteTokenExpiry: tokenExpiry,
+        eventbriteTokenUpdatedAt: Date.now(),
+        eventbriteCsrfToken: null,
+        eventbriteCsrfExpiry: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      });
+    } else {
+      // Update existing document
+      await updateDoc(userRef, {
+        eventbriteToken: accessToken,
+        eventbriteRefreshToken: refreshToken,
+        eventbriteTokenExpiry: tokenExpiry,
+        eventbriteTokenUpdatedAt: Date.now(),
+        eventbriteCsrfToken: null,
+        eventbriteCsrfExpiry: null,
+        updatedAt: Date.now()
+      });
+    }
 
     // Store in cookies
     const cookieStore = cookies();
