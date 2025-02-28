@@ -30,6 +30,13 @@ async function ensureUserDocument(userId: string) {
     // Create the user document with basic fields
     await setDoc(userRef, {
       id: userId,
+      displayName: '',
+      email: '',
+      company: '',
+      title: '',
+      interests: [],
+      skills: [],
+      positions: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
       eventbriteToken: null,

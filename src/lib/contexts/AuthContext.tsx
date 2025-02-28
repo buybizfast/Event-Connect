@@ -15,6 +15,7 @@ import {
   isEmailVerified,
   resendVerificationEmail,
   updateUserVerificationStatus,
+  createUserProfile,
 } from '@/lib/firebase/firebaseUtils';
 import { useRouter } from 'next/navigation';
 
@@ -58,15 +59,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       setUser(user);
       
-      // If user is logged in and email is verified, update verification status in Firestore
-      if (user && user.emailVerified) {
+      if (user) {
         try {
-          const userProfile = await getUserProfile(user.uid);
-          if (userProfile && !userProfile.isVerified) {
-            await updateUserVerificationStatus(user.uid, true);
+          // Check if user document exists
+          const userDoc = await getUserProfile(user.uid);
+          if (!userDoc) {
+            // Create user document if it doesn't exist
+            await createUserProfile(user.uid, {
+              displayName: user.displayName || '',
+              email: user.email || '',
+              company: '',
+              title: '',
+              interests: [],
+              skills: [],
+              positions: [],
+              isVerified: user.emailVerified
+            });
+          }
+          
+          // If user is logged in and email is verified, update verification status in Firestore
+          if (user.emailVerified) {
+            try {
+              const userProfile = await getUserProfile(user.uid);
+              if (userProfile && !userProfile.isVerified) {
+                await updateUserVerificationStatus(user.uid, true);
+              }
+            } catch (error) {
+              console.error('Error updating user verification status:', error);
+            }
           }
         } catch (error) {
-          console.error('Error updating user verification status:', error);
+          console.error('Error ensuring user document exists:', error);
         }
       }
       
