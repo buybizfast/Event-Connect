@@ -1,137 +1,80 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { getEventbriteTokens, isEventbriteTokenValid } from '@/lib/firebase/eventbriteUtils';
 
 // Function to get base URL
 const getBaseUrl = () => {
-  // In server components, we should only use the environment variable or a fallback
-  return process.env.NEXT_PUBLIC_BASE_URL || 'https://event-connect.vercel.app';
+  return process.env.NEXT_PUBLIC_BASE_URL || 'https://event-connect-git-main-mindfulelementsinc-gmailcoms-projects.vercel.app';
 };
 
 // Eventbrite API endpoint for fetching user's events
 const EVENTBRITE_API_URL = 'https://www.eventbriteapi.com/v3';
-
-// Cache to prevent duplicate requests
-const responseCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
+const EVENTBRITE_PRIVATE_TOKEN = process.env.EVENTBRITE_PRIVATE_TOKEN;
 
 export async function GET(request: NextRequest) {
   try {
     console.log('Fetching Eventbrite events...');
     
-    // Get user ID from cookies
-    const userId = cookies().get('userId')?.value;
-    console.log('User ID from cookies:', userId);
-    
-    if (!userId) {
-      console.log('No user ID found');
+    if (!EVENTBRITE_PRIVATE_TOKEN) {
+      console.error('Eventbrite Private Token is not configured');
       return NextResponse.json({
         events: [],
         authenticated: false,
-        authRequired: true,
-        message: 'User not authenticated. Please sign in.'
-      }, { status: 401 });
+        message: 'Eventbrite configuration error'
+      }, { status: 500 });
     }
-    
-    // Check if token is valid
-    console.log('Checking token validity...');
-    const isValid = await isEventbriteTokenValid(userId);
-    console.log('Token valid:', isValid);
-    
-    if (!isValid) {
-      console.log('Token invalid or expired');
+
+    // Get organization ID
+    console.log('Fetching organization ID...');
+    const orgResponse = await fetch(`${EVENTBRITE_API_URL}/users/me/organizations`, {
+      headers: {
+        'Authorization': `Bearer ${EVENTBRITE_PRIVATE_TOKEN}`,
+      },
+    });
+
+    if (!orgResponse.ok) {
+      console.error('Failed to fetch organization:', await orgResponse.text());
       return NextResponse.json({
         events: [],
         authenticated: false,
-        authRequired: true,
-        message: 'Eventbrite authentication required. Please reconnect your account.'
-      }, { status: 401 });
+        message: 'Failed to fetch organization'
+      }, { status: 500 });
     }
-    
-    // Get tokens from Firestore
-    console.log('Getting tokens from Firestore...');
-    const tokens = await getEventbriteTokens(userId);
-    
-    if (!tokens) {
-      console.log('No tokens found in Firestore');
+
+    const orgData = await orgResponse.json();
+    const organizationId = orgData.organizations?.[0]?.id;
+
+    if (!organizationId) {
+      console.log('No organization found');
       return NextResponse.json({
         events: [],
-        authenticated: false,
-        authRequired: true,
-        message: 'Eventbrite authentication required. Please reconnect your account.'
-      }, { status: 401 });
-    }
-    
-    console.log('Tokens retrieved successfully');
-    
-    // If we have an organization ID, use it to fetch events
-    if (tokens.organizationId) {
-      console.log('Fetching events for organization:', tokens.organizationId);
-      const eventsResponse = await fetch(
-        `${EVENTBRITE_API_URL}/organizations/${tokens.organizationId}/events?status=live,started,ended,completed&expand=venue,organizer,ticket_classes`,
-        {
-          headers: {
-            'Authorization': `Bearer ${tokens.accessToken}`,
-          },
-        }
-      );
-      
-      if (!eventsResponse.ok) {
-        if (eventsResponse.status === 401) {
-          console.log('Token expired during event fetch');
-          return NextResponse.json({
-            events: [],
-            authenticated: false,
-            authRequired: true,
-            message: 'Eventbrite authentication expired. Please reconnect your account.'
-          }, { status: 401 });
-        }
-        
-        const errorText = await eventsResponse.text();
-        console.error('Error fetching organization events:', errorText);
-        throw new Error(`Failed to fetch events: ${eventsResponse.statusText}`);
-      }
-      
-      const eventsData = await eventsResponse.json();
-      console.log(`Found ${eventsData.events?.length || 0} events for organization`);
-      
-      return NextResponse.json({
-        events: eventsData.events,
         authenticated: true,
-        message: 'Successfully fetched events'
+        message: 'No organization found'
       });
     }
-    
-    // If no organization ID, try to fetch user's events directly
-    console.log('No organization ID, fetching user events directly');
+
+    // Fetch events for the organization
+    console.log('Fetching events for organization:', organizationId);
     const eventsResponse = await fetch(
-      `${EVENTBRITE_API_URL}/users/me/events?status=live,started,ended,completed&expand=venue,organizer,ticket_classes`,
+      `${EVENTBRITE_API_URL}/organizations/${organizationId}/events?status=live,started,ended,completed&expand=venue,organizer,ticket_classes`,
       {
         headers: {
-          'Authorization': `Bearer ${tokens.accessToken}`,
+          'Authorization': `Bearer ${EVENTBRITE_PRIVATE_TOKEN}`,
         },
       }
     );
-    
+
     if (!eventsResponse.ok) {
-      if (eventsResponse.status === 401) {
-        console.log('Token expired during event fetch');
-        return NextResponse.json({
-          events: [],
-          authenticated: false,
-          authRequired: true,
-          message: 'Eventbrite authentication expired. Please reconnect your account.'
-        }, { status: 401 });
-      }
-      
-      const errorText = await eventsResponse.text();
-      console.error('Error fetching user events:', errorText);
-      throw new Error(`Failed to fetch events: ${eventsResponse.statusText}`);
+      console.error('Error fetching events:', await eventsResponse.text());
+      return NextResponse.json({
+        events: [],
+        authenticated: false,
+        message: 'Failed to fetch events'
+      }, { status: 500 });
     }
-    
+
     const eventsData = await eventsResponse.json();
-    console.log(`Found ${eventsData.events?.length || 0} events for user`);
-    
+    console.log(`Found ${eventsData.events?.length || 0} events`);
+
     return NextResponse.json({
       events: eventsData.events,
       authenticated: true,
