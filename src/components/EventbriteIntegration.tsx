@@ -82,9 +82,11 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
       } else {
         setEvents([]);
         
-        if (data.authRequired) {
+        if (response.status === 401) {
           setIsConnected(false);
           setError('Please reconnect your Eventbrite account to continue');
+          // Trigger reconnection
+          connectToEventbrite();
         } else {
           setError(data.message || data.error || 'Failed to fetch events');
         }
@@ -110,6 +112,10 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
     
     try {
       const baseUrl = getBaseUrl();
+      // Clear any existing Eventbrite cookies
+      document.cookie = 'eventbrite_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      document.cookie = 'eventbrite_csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      
       // Redirect to the Eventbrite auth endpoint
       window.location.href = `${baseUrl}/api/eventbrite/auth`;
     } catch (err) {
@@ -188,28 +194,18 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
         </Alert>
       )}
 
-      {isConnected && events.length === 0 && !loading && !error && (
-        <Alert>
-          <AlertDescription>
-            No events found in your Eventbrite account. 
-            <a 
-              href="https://www.eventbrite.com/manage/events/create" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="ml-2 text-blue-600 hover:text-blue-800"
-            >
-              Create an event on Eventbrite
-            </a>
-          </AlertDescription>
-        </Alert>
+      {isConnected && !loading && events.length === 0 && (
+        <div className="text-center py-8">
+          <p className="text-gray-600">No events found in your Eventbrite account.</p>
+        </div>
       )}
 
-      {events.length > 0 && (
+      {isConnected && events.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {events.map((event) => (
             <div
               key={event.id}
-              className="rounded-lg border p-4 hover:border-primary cursor-pointer transition-all duration-200 hover:shadow-md"
+              className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => handleEventSelect(event)}
             >
               {event.logo && (
@@ -219,20 +215,13 @@ export default function EventbriteIntegration({ onEventSelect }: EventbriteInteg
                   className="w-full h-40 object-cover rounded-md mb-4"
                 />
               )}
-              <h3 className="font-semibold mb-2 line-clamp-2">{event.name.text}</h3>
-              <p className="text-sm text-gray-500">
+              <h3 className="font-semibold text-lg mb-2">{event.name.text}</h3>
+              <p className="text-gray-600 text-sm mb-2">
                 {new Date(event.start.local).toLocaleDateString()}
               </p>
-              <div className="mt-2">
-                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                  event.status === 'live' ? 'bg-green-100 text-green-800' : 
-                  event.status === 'started' ? 'bg-blue-100 text-blue-800' : 
-                  event.status === 'ended' ? 'bg-gray-100 text-gray-800' : 
-                  'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {event.status || 'Draft'}
-                </span>
-              </div>
+              {event.venue && (
+                <p className="text-gray-500 text-sm">{event.venue.name}</p>
+              )}
             </div>
           ))}
         </div>

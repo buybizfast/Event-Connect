@@ -12,8 +12,11 @@ const EVENTBRITE_API_URL = 'https://www.eventbriteapi.com/v3';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get user ID from cookies
-    const userId = cookies().get('userId')?.value;
+    // Get user ID and token from cookies
+    const cookieStore = cookies();
+    const userId = cookieStore.get('userId')?.value;
+    const cookieToken = cookieStore.get('eventbrite_token')?.value;
+
     if (!userId) {
       return NextResponse.json({
         events: [],
@@ -22,11 +25,14 @@ export async function GET(request: NextRequest) {
       }, { status: 401 });
     }
 
-    // Get Eventbrite tokens
-    const { accessToken, tokenExpiry } = await getEventbriteTokens(userId);
+    // Try to get token from Firebase first
+    const { accessToken: firebaseToken, tokenExpiry } = await getEventbriteTokens(userId);
+    
+    // Use cookie token as fallback
+    let currentToken = firebaseToken || cookieToken;
 
     // Check if token exists and is valid
-    if (!accessToken || !tokenExpiry || Date.now() >= tokenExpiry) {
+    if (!currentToken || (tokenExpiry && Date.now() >= tokenExpiry)) {
       // Try to refresh the token
       const refreshed = await refreshEventbriteToken(userId);
       if (!refreshed) {
@@ -45,10 +51,9 @@ export async function GET(request: NextRequest) {
           message: 'Failed to refresh Eventbrite token'
         }, { status: 401 });
       }
+      currentToken = newToken;
     }
 
-    // Get current token
-    const { accessToken: currentToken } = await getEventbriteTokens(userId);
     if (!currentToken) {
       return NextResponse.json({
         events: [],
@@ -65,6 +70,16 @@ export async function GET(request: NextRequest) {
     });
 
     if (!orgResponse.ok) {
+      // If unauthorized, clear the tokens and request reauthorization
+      if (orgResponse.status === 401) {
+        cookieStore.delete('eventbrite_token');
+        return NextResponse.json({
+          events: [],
+          authenticated: false,
+          message: 'Eventbrite authentication required'
+        }, { status: 401 });
+      }
+
       console.error('Failed to fetch organization:', await orgResponse.text());
       return NextResponse.json({
         events: [],

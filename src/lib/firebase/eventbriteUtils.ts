@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import { cookies } from 'next/headers';
 
 // Generate a CSRF token
 export function generateCsrfToken(): string {
@@ -55,6 +56,7 @@ export async function storeEventbriteTokens(
 
     const tokenExpiry = Date.now() + (expiresIn * 1000);
     
+    // Store in Firebase
     await setDoc(doc(db, 'users', userId), {
       eventbriteToken: accessToken,
       eventbriteRefreshToken: refreshToken,
@@ -63,6 +65,15 @@ export async function storeEventbriteTokens(
       eventbriteCsrfToken: null,
       eventbriteCsrfExpiry: null,
     }, { merge: true });
+
+    // Store in cookies
+    const cookieStore = cookies();
+    cookieStore.set('eventbrite_token', accessToken, {
+      expires: new Date(tokenExpiry),
+      path: '/',
+      secure: true,
+      sameSite: 'lax'
+    });
   } catch (error) {
     console.error('Error storing Eventbrite tokens:', error);
     throw error;
