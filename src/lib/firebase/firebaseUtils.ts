@@ -46,6 +46,10 @@ interface UserProfile {
     description?: string;
   }>;
   isVerified?: boolean;
+  eventbriteToken?: string;
+  eventbriteRefreshToken?: string;
+  eventbriteTokenExpiry?: number;
+  eventbriteOrganizationId?: string;
 }
 
 export const signUp = async (
