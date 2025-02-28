@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { getEventbriteTokens, refreshEventbriteToken } from '@/lib/firebase/eventbriteUtils';
 
 // Function to get base URL
 const getBaseUrl = () => {
@@ -8,55 +9,63 @@ const getBaseUrl = () => {
 
 // Eventbrite API endpoint for fetching user's events
 const EVENTBRITE_API_URL = 'https://www.eventbriteapi.com/v3';
-const EVENTBRITE_PRIVATE_TOKEN = process.env.EVENTBRITE_PRIVATE_TOKEN;
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('Starting Eventbrite events fetch with token:', EVENTBRITE_PRIVATE_TOKEN?.substring(0, 5) + '...');
-    
-    if (!EVENTBRITE_PRIVATE_TOKEN) {
-      console.error('Eventbrite Private Token is not configured');
+    // Get user ID from cookies
+    const userId = cookies().get('userId')?.value;
+    if (!userId) {
       return NextResponse.json({
         events: [],
         authenticated: false,
-        message: 'Eventbrite configuration error'
-      }, { status: 500 });
-    }
-
-    // First, test the token by getting user info
-    console.log('Testing token with user info endpoint...');
-    const userResponse = await fetch(`${EVENTBRITE_API_URL}/users/me/`, {
-      headers: {
-        'Authorization': `Bearer ${EVENTBRITE_PRIVATE_TOKEN}`,
-      },
-    });
-
-    if (!userResponse.ok) {
-      const userError = await userResponse.text();
-      console.error('Failed to fetch user info:', userError);
-      return NextResponse.json({
-        events: [],
-        authenticated: false,
-        message: 'Failed to authenticate with Eventbrite'
+        message: 'User not authenticated'
       }, { status: 401 });
     }
 
-    const userData = await userResponse.json();
-    console.log('Successfully authenticated as Eventbrite user:', userData.id);
+    // Get Eventbrite tokens
+    const { accessToken, tokenExpiry } = await getEventbriteTokens(userId);
 
-    // Get organization ID
-    console.log('Fetching organization ID...');
+    // Check if token exists and is valid
+    if (!accessToken || !tokenExpiry || Date.now() >= tokenExpiry) {
+      // Try to refresh the token
+      const refreshed = await refreshEventbriteToken(userId);
+      if (!refreshed) {
+        return NextResponse.json({
+          events: [],
+          authenticated: false,
+          message: 'Eventbrite authentication required'
+        }, { status: 401 });
+      }
+      // Get new token after refresh
+      const { accessToken: newToken } = await getEventbriteTokens(userId);
+      if (!newToken) {
+        return NextResponse.json({
+          events: [],
+          authenticated: false,
+          message: 'Failed to refresh Eventbrite token'
+        }, { status: 401 });
+      }
+    }
+
+    // Get current token
+    const { accessToken: currentToken } = await getEventbriteTokens(userId);
+    if (!currentToken) {
+      return NextResponse.json({
+        events: [],
+        authenticated: false,
+        message: 'No valid Eventbrite token found'
+      }, { status: 401 });
+    }
+
+    // First, get organization ID
     const orgResponse = await fetch(`${EVENTBRITE_API_URL}/users/me/organizations`, {
       headers: {
-        'Authorization': `Bearer ${EVENTBRITE_PRIVATE_TOKEN}`,
+        'Authorization': `Bearer ${currentToken}`,
       },
     });
 
-    const orgResponseText = await orgResponse.text();
-    console.log('Organization response:', orgResponseText);
-
     if (!orgResponse.ok) {
-      console.error('Failed to fetch organization:', orgResponseText);
+      console.error('Failed to fetch organization:', await orgResponse.text());
       return NextResponse.json({
         events: [],
         authenticated: false,
@@ -64,88 +73,68 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
 
-    const orgData = JSON.parse(orgResponseText);
-    console.log('Organization data:', orgData);
-    
+    const orgData = await orgResponse.json();
     const organizationId = orgData.organizations?.[0]?.id;
-    console.log('Found organization ID:', organizationId);
 
-    if (!organizationId) {
-      console.log('No organization found');
-      // Try fetching user's events directly
-      console.log('Attempting to fetch user events directly...');
-      const userEventsResponse = await fetch(
-        `${EVENTBRITE_API_URL}/users/me/events?status=live,started,ended,completed&expand=venue,organizer,ticket_classes`,
+    let events = [];
+
+    if (organizationId) {
+      // Fetch events for the organization
+      const eventsResponse = await fetch(
+        `${EVENTBRITE_API_URL}/organizations/${organizationId}/events?status=live,started,ended,completed&expand=venue,organizer,ticket_classes`,
         {
           headers: {
-            'Authorization': `Bearer ${EVENTBRITE_PRIVATE_TOKEN}`,
+            'Authorization': `Bearer ${currentToken}`,
           },
         }
       );
 
-      const userEventsText = await userEventsResponse.text();
-      console.log('User events response:', userEventsText);
-
-      if (!userEventsResponse.ok) {
-        console.error('Failed to fetch user events:', userEventsText);
+      if (!eventsResponse.ok) {
+        console.error('Failed to fetch organization events:', await eventsResponse.text());
         return NextResponse.json({
           events: [],
           authenticated: true,
-          message: 'No events found'
-        });
+          message: 'Failed to fetch organization events'
+        }, { status: 500 });
       }
 
-      const userEventsData = JSON.parse(userEventsText);
-      console.log(`Found ${userEventsData.events?.length || 0} user events`);
+      const eventsData = await eventsResponse.json();
+      events = eventsData.events || [];
+    } else {
+      // If no organization, try fetching user's events directly
+      const userEventsResponse = await fetch(
+        `${EVENTBRITE_API_URL}/users/me/events?status=live,started,ended,completed&expand=venue,organizer,ticket_classes`,
+        {
+          headers: {
+            'Authorization': `Bearer ${currentToken}`,
+          },
+        }
+      );
 
-      return NextResponse.json({
-        events: userEventsData.events || [],
-        authenticated: true,
-        message: 'Successfully fetched user events'
-      });
-    }
-
-    // Fetch events for the organization
-    console.log('Fetching events for organization:', organizationId);
-    const eventsResponse = await fetch(
-      `${EVENTBRITE_API_URL}/organizations/${organizationId}/events?status=live,started,ended,completed&expand=venue,organizer,ticket_classes`,
-      {
-        headers: {
-          'Authorization': `Bearer ${EVENTBRITE_PRIVATE_TOKEN}`,
-        },
+      if (!userEventsResponse.ok) {
+        console.error('Failed to fetch user events:', await userEventsResponse.text());
+        return NextResponse.json({
+          events: [],
+          authenticated: true,
+          message: 'Failed to fetch user events'
+        }, { status: 500 });
       }
-    );
 
-    const eventsText = await eventsResponse.text();
-    console.log('Events response:', eventsText);
-
-    if (!eventsResponse.ok) {
-      console.error('Error fetching events:', eventsText);
-      return NextResponse.json({
-        events: [],
-        authenticated: false,
-        message: 'Failed to fetch events'
-      }, { status: 500 });
+      const userEventsData = await userEventsResponse.json();
+      events = userEventsData.events || [];
     }
-
-    const eventsData = JSON.parse(eventsText);
-    console.log(`Found ${eventsData.events?.length || 0} organization events`);
 
     return NextResponse.json({
-      events: eventsData.events || [],
+      events,
       authenticated: true,
-      message: 'Successfully fetched events',
-      debug: {
-        userId: userData.id,
-        organizationId,
-        eventCount: eventsData.events?.length || 0
-      }
+      message: 'Successfully fetched events'
     });
   } catch (error) {
     console.error('Error fetching Eventbrite events:', error);
     return NextResponse.json({
-      error: 'Failed to fetch Eventbrite events',
-      message: error instanceof Error ? error.message : 'Unknown error occurred'
+      events: [],
+      authenticated: false,
+      message: error instanceof Error ? error.message : 'Failed to fetch events'
     }, { status: 500 });
   }
 } 

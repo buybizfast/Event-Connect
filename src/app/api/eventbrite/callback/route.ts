@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { storeEventbriteTokens } from '@/lib/firebase/eventbriteUtils';
+import { validateCsrfToken, storeEventbriteTokens } from '@/lib/firebase/eventbriteUtils';
 
 // Eventbrite OAuth token endpoint
 const EVENTBRITE_TOKEN_URL = 'https://www.eventbrite.com/oauth/token';
@@ -12,154 +12,89 @@ const EVENTBRITE_CLIENT_SECRET = process.env.EVENTBRITE_CLIENT_SECRET || '';
 
 // Function to get base URL
 const getBaseUrl = () => {
-  return process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  return process.env.NEXT_PUBLIC_BASE_URL || 'https://event-connect-git-main-mindfulelementsinc-gmailcoms-projects.vercel.app';
 };
 
 const REDIRECT_URI = `${getBaseUrl()}/api/eventbrite/callback`;
 
 export async function GET(request: NextRequest) {
-  console.log('Eventbrite callback received');
-  
-  // Get the authorization code from the URL query parameters
-  const searchParams = request.nextUrl.searchParams;
-  const code = searchParams.get('code');
-  const error = searchParams.get('error');
-  const state = searchParams.get('state');
-  
-  // Get user ID from cookies
-  const userId = cookies().get('userId')?.value;
-  
-  console.log('Callback params:', { code: code?.substring(0, 5) + '...', error, state, userId });
-  
-  if (!userId) {
-    console.error('No user ID found in cookies');
-    return NextResponse.redirect(
-      `${getBaseUrl()}/profile?eventbrite_error=${encodeURIComponent('User not authenticated. Please sign in and try again.')}`
-    );
-  }
-  
-  // Parse the state parameter to get the eventId and CSRF token
-  let eventId: string | null = null;
-  let csrfToken: string | null = null;
-  
-  if (state) {
-    try {
-      const stateObj = JSON.parse(state);
-      eventId = stateObj.eventId;
-      csrfToken = stateObj.csrf;
-    } catch (err) {
-      console.error('Error parsing state parameter:', err);
-      return NextResponse.redirect(`${getBaseUrl()}/profile?eventbrite_error=invalid_state`);
-    }
-  }
-  
-  // Verify CSRF token
-  const storedCsrfToken = cookies().get('eventbrite_oauth_state')?.value;
-  if (!csrfToken || !storedCsrfToken || csrfToken !== storedCsrfToken) {
-    console.error('CSRF token validation failed', { csrfToken, storedCsrfToken });
-    return NextResponse.redirect(`${getBaseUrl()}/profile?eventbrite_error=csrf_validation_failed`);
-  }
-  
-  // Handle error case
-  if (error) {
-    console.error('Eventbrite OAuth error:', error);
-    return NextResponse.redirect(
-      eventId 
-        ? `${getBaseUrl()}/events/${eventId}?eventbrite_error=${error}`
-        : `${getBaseUrl()}/profile?eventbrite_error=${error}`
-    );
-  }
-  
-  // Handle missing code
-  if (!code) {
-    console.error('No authorization code received from Eventbrite');
-    return NextResponse.redirect(
-      eventId
-        ? `${getBaseUrl()}/events/${eventId}?eventbrite_error=no_code`
-        : `${getBaseUrl()}/profile?eventbrite_error=no_code`
-    );
-  }
-  
   try {
-    console.log('Exchanging code for token...');
-    
-    // Exchange the authorization code for an access token
-    const tokenResponse = await fetch(EVENTBRITE_TOKEN_URL, {
+    // Get query parameters
+    const searchParams = request.nextUrl.searchParams;
+    const code = searchParams.get('code');
+    const error = searchParams.get('error');
+    const stateParam = searchParams.get('state');
+
+    // Handle errors from Eventbrite
+    if (error) {
+      console.error('Eventbrite OAuth error:', error);
+      return NextResponse.redirect(
+        `${getBaseUrl()}/profile?eventbrite_error=${encodeURIComponent(error)}`
+      );
+    }
+
+    // Validate required parameters
+    if (!code || !stateParam) {
+      return NextResponse.redirect(
+        `${getBaseUrl()}/profile?eventbrite_error=Missing%20required%20parameters`
+      );
+    }
+
+    // Parse state parameter
+    const { csrfToken, userId } = JSON.parse(decodeURIComponent(stateParam));
+
+    // Validate CSRF token
+    const isValidCsrf = await validateCsrfToken(userId, csrfToken);
+    if (!isValidCsrf) {
+      return NextResponse.redirect(
+        `${getBaseUrl()}/profile?eventbrite_error=Invalid%20CSRF%20token`
+      );
+    }
+
+    // Exchange code for access token
+    const tokenResponse = await fetch('https://www.eventbrite.com/oauth/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: EVENTBRITE_CLIENT_ID,
-        client_secret: EVENTBRITE_CLIENT_SECRET,
         code,
-        redirect_uri: REDIRECT_URI,
-      }).toString(),
+        client_id: process.env.EVENTBRITE_CLIENT_ID!,
+        client_secret: process.env.EVENTBRITE_CLIENT_SECRET!,
+        grant_type: 'authorization_code',
+        redirect_uri: `${getBaseUrl()}/api/eventbrite/callback`,
+      }),
     });
-    
+
     if (!tokenResponse.ok) {
-      const errorData = await tokenResponse.json().catch(() => ({ error: 'Unknown error' }));
-      console.error('Error exchanging code for token:', errorData);
+      console.error('Failed to exchange code for token:', await tokenResponse.text());
       return NextResponse.redirect(
-        eventId
-          ? `${getBaseUrl()}/events/${eventId}?eventbrite_error=${encodeURIComponent('Failed to exchange code for token')}`
-          : `${getBaseUrl()}/profile?eventbrite_error=${encodeURIComponent('Failed to exchange code for token')}`
+        `${getBaseUrl()}/profile?eventbrite_error=Failed%20to%20exchange%20code%20for%20token`
       );
     }
-    
+
     const tokenData = await tokenResponse.json();
-    console.log('Token exchange successful');
-    
-    // Get the organization ID
-    console.log('Fetching organization ID...');
-    const orgResponse = await fetch(`${EVENTBRITE_API_BASE}/users/me/organizations`, {
-      headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`,
-      },
-    });
-    
-    let organizationId = null;
-    if (orgResponse.ok) {
-      const orgData = await orgResponse.json();
-      if (orgData.organizations && orgData.organizations.length > 0) {
-        organizationId = orgData.organizations[0].id;
-        console.log('Organization ID found:', organizationId);
-      } else {
-        console.log('No organizations found');
-      }
-    } else {
-      console.error('Error fetching organization:', await orgResponse.text());
-    }
-    
+
     // Store tokens in Firestore
-    console.log('Storing tokens in Firestore...');
-    await storeEventbriteTokens(userId, {
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
-      expiresIn: tokenData.expires_in,
-      organizationId
-    });
-    
-    console.log('Tokens stored successfully');
-    
-    // Set success cookie and redirect
-    const response = NextResponse.redirect(
-      eventId
-        ? `${getBaseUrl()}/events/${eventId}?eventbrite_connected=true`
-        : `${getBaseUrl()}/profile?eventbrite_connected=true`
+    await storeEventbriteTokens(
+      userId,
+      tokenData.access_token,
+      tokenData.refresh_token,
+      tokenData.expires_in
     );
-    
-    // Clear the CSRF token cookie
-    response.cookies.set('eventbrite_oauth_state', '', { maxAge: 0 });
-    
-    return response;
-  } catch (error) {
-    console.error('Error in Eventbrite callback:', error);
+
+    // Clear CSRF token cookie
+    const cookieStore = cookies();
+    cookieStore.delete('eventbrite_csrf_token');
+
+    // Redirect back to profile with success
     return NextResponse.redirect(
-      eventId
-        ? `${getBaseUrl()}/events/${eventId}?eventbrite_error=${encodeURIComponent('Internal server error during OAuth callback')}`
-        : `${getBaseUrl()}/profile?eventbrite_error=${encodeURIComponent('Internal server error during OAuth callback')}`
+      `${getBaseUrl()}/profile?eventbrite_connected=true`
+    );
+  } catch (error) {
+    console.error('Error in OAuth callback:', error);
+    return NextResponse.redirect(
+      `${getBaseUrl()}/profile?eventbrite_error=Internal%20server%20error`
     );
   }
 } 
