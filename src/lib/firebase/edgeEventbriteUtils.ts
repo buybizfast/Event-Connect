@@ -100,12 +100,13 @@ export function storeEventbriteTokens(
       throw new Error('Missing required parameters for token storage');
     }
     
-    const tokenExpiry = Date.now() + (expiresIn * 1000);
+    console.log('Storing tokens for user:', userId, 'with expiry:', expiresIn);
+    
     const cookieStore = cookies();
     
     // Store access token
     cookieStore.set('eventbrite_token', accessToken, {
-      expires: new Date(tokenExpiry),
+      maxAge: expiresIn, // Use maxAge instead of expires
       path: '/',
       secure: true,
       sameSite: 'lax'
@@ -113,7 +114,7 @@ export function storeEventbriteTokens(
     
     // Store refresh token (normally not recommended in cookies, but needed for Edge)
     cookieStore.set('eventbrite_refresh_token', refreshToken, {
-      expires: new Date(tokenExpiry),
+      maxAge: expiresIn, // Use maxAge instead of expires
       path: '/',
       secure: true,
       httpOnly: true,
@@ -122,15 +123,15 @@ export function storeEventbriteTokens(
     
     // Store user ID for token association
     cookieStore.set('eventbrite_token_user', userId, {
-      expires: new Date(tokenExpiry),
+      maxAge: expiresIn, // Use maxAge instead of expires
       path: '/',
       secure: true,
       sameSite: 'lax'
     });
     
     // Store expiry time
-    cookieStore.set('eventbrite_token_expiry', tokenExpiry.toString(), {
-      expires: new Date(tokenExpiry),
+    cookieStore.set('eventbrite_token_expiry', (Date.now() + (expiresIn * 1000)).toString(), {
+      maxAge: expiresIn, // Use maxAge instead of expires
       path: '/',
       secure: true,
       sameSite: 'lax'

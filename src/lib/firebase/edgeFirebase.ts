@@ -10,6 +10,14 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+// Log Firebase config for debugging (without sensitive values)
+console.log('Firebase Edge config check:', {
+  apiKeyExists: !!firebaseConfig.apiKey,
+  authDomainExists: !!firebaseConfig.authDomain,
+  projectIdExists: !!firebaseConfig.projectId,
+  appIdExists: !!firebaseConfig.appId
+});
+
 // Global variables to store Firebase instances
 let firebaseApp: FirebaseApp | undefined;
 let firestoreDb: Firestore | undefined;
@@ -22,15 +30,19 @@ export function initEdgeFirebase() {
       return { app: firebaseApp, db: firestoreDb! };
     }
     
+    console.log('Initializing Firebase for Edge runtime');
+    
     // Initialize Firebase app
     firebaseApp = initializeApp(firebaseConfig, 'edge-app');
     
     // Initialize Firestore with specific settings for Edge
     firestoreDb = getFirestore(firebaseApp);
     
+    console.log('Firebase initialized successfully for Edge runtime');
+    
     return { app: firebaseApp, db: firestoreDb };
   } catch (error) {
-    console.error('Error initializing Firebase for Edge:', error);
+    console.error('Error initializing Firebase for Edge:', error instanceof Error ? error.message : error);
     throw error;
   }
 }

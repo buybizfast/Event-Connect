@@ -131,6 +131,16 @@ export async function GET(request: NextRequest) {
 
     // Store tokens in cookies only (no Firestore)
     try {
+      console.log('About to store tokens with expiry:', tokenData.expires_in);
+      
+      // Validate token data
+      if (!tokenData.access_token || !tokenData.refresh_token || !tokenData.expires_in) {
+        console.error('Invalid token data received:', Object.keys(tokenData));
+        return NextResponse.redirect(
+          `${baseUrl}/profile?eventbrite_error=${encodeURIComponent('Invalid token data received from Eventbrite')}`
+        );
+      }
+      
       storeEventbriteTokens(
         userId,
         tokenData.access_token,
@@ -139,9 +149,9 @@ export async function GET(request: NextRequest) {
       );
       console.log('Successfully stored tokens in cookies');
     } catch (storeError) {
-      console.error('Error storing tokens:', storeError);
+      console.error('Error storing tokens:', storeError instanceof Error ? storeError.message : storeError);
       return NextResponse.redirect(
-        `${baseUrl}/profile?eventbrite_error=${encodeURIComponent('Failed to store tokens')}`
+        `${baseUrl}/profile?eventbrite_error=${encodeURIComponent('Failed to store tokens: ' + (storeError instanceof Error ? storeError.message : 'Unknown error'))}`
       );
     }
 
