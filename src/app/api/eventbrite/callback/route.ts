@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { validateCsrfToken, storeEventbriteTokens } from '@/lib/firebase/eventbriteUtils';
+import { validateCsrfToken, storeEventbriteTokens } from '@/lib/firebase/edgeEventbriteUtils';
 import { getBaseUrl } from '@/lib/utils/urlUtils';
 
 // Specify that this route is dynamic and requires the Edge Runtime
@@ -75,30 +75,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Validate CSRF token - first check cookie
-    const cookieStore = cookies();
-    const cookieCsrfToken = cookieStore.get('eventbrite_csrf_token')?.value;
-    
-    let isValidCsrf = false;
-    
-    // First try to validate with cookie
-    if (cookieCsrfToken && cookieCsrfToken === csrfToken) {
-      console.log('CSRF token validated using cookie');
-      isValidCsrf = true;
-    } else {
-      // If cookie validation fails, try Firestore
-      try {
-        console.log('Validating CSRF token using Firestore for user:', userId);
-        isValidCsrf = await validateCsrfToken(userId, csrfToken);
-      } catch (csrfError) {
-        console.error('Error during CSRF validation:', csrfError);
-        // Continue with token exchange if we have the userId
-        if (userId) {
-          console.log('Proceeding despite CSRF validation error for user:', userId);
-          isValidCsrf = true;
-        }
-      }
-    }
+    // Validate CSRF token using Edge-compatible method
+    const isValidCsrf = validateCsrfToken(userId, csrfToken);
     
     if (!isValidCsrf) {
       console.error('CSRF validation failed for user:', userId);
@@ -151,30 +129,26 @@ export async function GET(request: NextRequest) {
     const tokenData = await tokenResponse.json();
     console.log('Successfully received token data');
 
-    // Store tokens in Firestore
+    // Store tokens in cookies only (no Firestore)
     try {
-      console.log('Storing tokens for user:', userId);
-      await storeEventbriteTokens(
+      storeEventbriteTokens(
         userId,
         tokenData.access_token,
         tokenData.refresh_token,
         tokenData.expires_in
       );
-      console.log('Successfully stored tokens in Firestore');
+      console.log('Successfully stored tokens in cookies');
     } catch (storeError) {
-      console.error('Error storing tokens in Firestore:', storeError);
-      // Store tokens in cookies as fallback
-      cookieStore.set('eventbrite_token', tokenData.access_token, {
-        expires: new Date(Date.now() + (tokenData.expires_in * 1000)),
-        path: '/',
-        secure: true,
-        sameSite: 'lax'
-      });
-      console.log('Stored token in cookies as fallback');
+      console.error('Error storing tokens:', storeError);
+      return NextResponse.redirect(
+        `${baseUrl}/profile?eventbrite_error=${encodeURIComponent('Failed to store tokens')}`
+      );
     }
 
     // Clear CSRF token cookie
+    const cookieStore = cookies();
     cookieStore.delete('eventbrite_csrf_token');
+    cookieStore.delete('eventbrite_csrf_user');
 
     // Redirect back to profile with success
     console.log('OAuth flow completed successfully');

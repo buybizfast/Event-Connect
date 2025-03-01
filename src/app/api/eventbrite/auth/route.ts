@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/firebase';
-import { generateCsrfToken } from '@/lib/firebase/eventbriteUtils';
+import { generateCsrfToken, storeCsrfToken } from '@/lib/firebase/edgeEventbriteUtils';
 import { getBaseUrl } from '@/lib/utils/urlUtils';
 
 // Specify that this route is dynamic and requires the Edge Runtime
@@ -26,52 +24,17 @@ export async function GET(request: NextRequest) {
 
     console.log('Initiating Eventbrite OAuth flow for user:', userId);
 
-    // Generate CSRF token first
+    // Generate CSRF token using Edge-compatible method
     const csrfToken = generateCsrfToken();
     console.log('Generated CSRF token for user:', userId);
     
-    // Set CSRF token in cookies
-    const cookieStore = cookies();
-    cookieStore.set('eventbrite_csrf_token', csrfToken, {
-      path: '/',
-      secure: true,
-      sameSite: 'lax',
-      maxAge: 3600 // 1 hour
-    });
-
-    // Try to store CSRF token in Firestore
+    // Store CSRF token in cookies only (no Firestore)
     try {
-      // Check if user exists in Firestore
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      
-      const tokenExpiry = Date.now() + (60 * 60 * 1000); // 1 hour expiry
-      
-      if (!userDoc.exists()) {
-        console.log('User document not found in Firestore, creating new one:', userId);
-        
-        // Create user document if it doesn't exist
-        await setDoc(doc(db, 'users', userId), {
-          eventbriteCsrfToken: csrfToken,
-          eventbriteCsrfExpiry: tokenExpiry,
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        });
-      } else {
-        console.log('Updating existing user document with CSRF token for user:', userId);
-        
-        // Update existing document with CSRF token
-        await setDoc(doc(db, 'users', userId), {
-          eventbriteCsrfToken: csrfToken,
-          eventbriteCsrfExpiry: tokenExpiry,
-          updatedAt: Date.now()
-        }, { merge: true });
-      }
-      
-      console.log('Successfully stored CSRF token in Firestore for user:', userId);
-    } catch (firestoreError) {
-      console.error('Error storing CSRF token in Firestore:', firestoreError);
-      // Continue with OAuth flow even if Firestore storage fails
-      // We'll rely on the cookie for CSRF validation as a fallback
+      storeCsrfToken(userId, csrfToken);
+      console.log('Successfully stored CSRF token in cookies for user:', userId);
+    } catch (error) {
+      console.error('Error storing CSRF token:', error);
+      // Continue with OAuth flow even if token storage fails
     }
 
     // Build OAuth URL
