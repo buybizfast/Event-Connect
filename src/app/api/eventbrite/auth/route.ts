@@ -5,6 +5,9 @@ import { db } from '@/lib/firebase/firebase';
 import { generateCsrfToken } from '@/lib/firebase/eventbriteUtils';
 import { getBaseUrl } from '@/lib/utils/urlUtils';
 
+// Specify that this route uses the Edge Runtime
+export const runtime = 'edge';
+
 // For testing purposes, hardcoding the client ID
 const EVENTBRITE_CLIENT_ID = process.env.EVENTBRITE_CLIENT_ID || 'JHEEX22OX2CXXUZ37B';
 

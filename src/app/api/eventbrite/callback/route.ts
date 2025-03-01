@@ -3,6 +3,9 @@ import { cookies } from 'next/headers';
 import { validateCsrfToken, storeEventbriteTokens } from '@/lib/firebase/eventbriteUtils';
 import { getBaseUrl } from '@/lib/utils/urlUtils';
 
+// Specify that this route uses the Edge Runtime
+export const runtime = 'edge';
+
 // Eventbrite OAuth token endpoint
 const EVENTBRITE_TOKEN_URL = 'https://www.eventbrite.com/oauth/token';
 

@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getEventbriteTokens, refreshEventbriteToken } from '@/lib/firebase/eventbriteUtils';
+import { getBaseUrl } from '@/lib/utils/urlUtils';
 
-// Function to get base URL
-const getBaseUrl = () => {
-  return process.env.NEXT_PUBLIC_BASE_URL || 'https://event-connect-git-main-mindfulelementsinc-gmailcoms-projects.vercel.app';
-};
+// Specify that this route uses the Edge Runtime
+export const runtime = 'edge';
 
-// Eventbrite API endpoint for fetching user's events
+// Eventbrite API endpoint
 const EVENTBRITE_API_URL = 'https://www.eventbriteapi.com/v3';
 
 export async function GET(request: NextRequest) {
