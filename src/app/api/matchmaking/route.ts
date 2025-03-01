@@ -4,6 +4,9 @@ import { findUserMatches } from '@/lib/ai/matchmaking';
 import { getUserProfile } from '@/lib/firebase/firebaseUtils';
 import { auth } from '@/lib/firebase/firebase';
 
+// Mark this route as dynamic since it uses cookies
+export const dynamic = 'force-dynamic';
+
 // Define the UserProfile interface to match the one in firebaseUtils.ts
 interface UserProfile {
   displayName: string;

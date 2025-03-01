@@ -5,7 +5,8 @@ import { db } from '@/lib/firebase/firebase';
 import { generateCsrfToken } from '@/lib/firebase/eventbriteUtils';
 import { getBaseUrl } from '@/lib/utils/urlUtils';
 
-// Specify that this route uses the Edge Runtime
+// Specify that this route is dynamic and requires the Edge Runtime
+export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
 // For testing purposes, hardcoding the client ID
@@ -19,30 +20,17 @@ export async function GET(request: NextRequest) {
     if (!userId) {
       console.error('User ID not found in cookies');
       return NextResponse.redirect(
-        `${getBaseUrl()}/profile?eventbrite_error=User%20not%20authenticated`
+        `${getBaseUrl()}/profile?eventbrite_error=${encodeURIComponent('User not authenticated')}`
       );
     }
 
     console.log('Initiating Eventbrite OAuth flow for user:', userId);
 
-    // Check if user exists in Firestore
-    const userDoc = await getDoc(doc(db, 'users', userId));
-    if (!userDoc.exists()) {
-      console.error('User document not found in Firestore:', userId);
-      
-      // Create user document if it doesn't exist
-      await setDoc(doc(db, 'users', userId), {
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      });
-      
-      console.log('Created new user document for:', userId);
-    }
-
-    // Generate and store CSRF token
+    // Generate CSRF token first
     const csrfToken = generateCsrfToken();
     console.log('Generated CSRF token for user:', userId);
     
+    // Set CSRF token in cookies
     const cookieStore = cookies();
     cookieStore.set('eventbrite_csrf_token', csrfToken, {
       path: '/',
@@ -51,26 +39,50 @@ export async function GET(request: NextRequest) {
       maxAge: 3600 // 1 hour
     });
 
-    // Store CSRF token in user's document
-    const tokenExpiry = Date.now() + (60 * 60 * 1000); // 1 hour expiry
-    await setDoc(doc(db, 'users', userId), {
-      eventbriteCsrfToken: csrfToken,
-      eventbriteCsrfExpiry: tokenExpiry,
-      updatedAt: Date.now()
-    }, { merge: true });
-
-    console.log('Stored CSRF token in Firestore for user:', userId);
+    // Try to store CSRF token in Firestore
+    try {
+      // Check if user exists in Firestore
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      
+      const tokenExpiry = Date.now() + (60 * 60 * 1000); // 1 hour expiry
+      
+      if (!userDoc.exists()) {
+        console.log('User document not found in Firestore, creating new one:', userId);
+        
+        // Create user document if it doesn't exist
+        await setDoc(doc(db, 'users', userId), {
+          eventbriteCsrfToken: csrfToken,
+          eventbriteCsrfExpiry: tokenExpiry,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        });
+      } else {
+        console.log('Updating existing user document with CSRF token for user:', userId);
+        
+        // Update existing document with CSRF token
+        await setDoc(doc(db, 'users', userId), {
+          eventbriteCsrfToken: csrfToken,
+          eventbriteCsrfExpiry: tokenExpiry,
+          updatedAt: Date.now()
+        }, { merge: true });
+      }
+      
+      console.log('Successfully stored CSRF token in Firestore for user:', userId);
+    } catch (firestoreError) {
+      console.error('Error storing CSRF token in Firestore:', firestoreError);
+      // Continue with OAuth flow even if Firestore storage fails
+      // We'll rely on the cookie for CSRF validation as a fallback
+    }
 
     // Build OAuth URL
     const clientId = EVENTBRITE_CLIENT_ID;
     if (!clientId) {
       console.error('Missing Eventbrite client ID in environment variables');
       return NextResponse.redirect(
-        `${getBaseUrl()}/profile?eventbrite_error=Missing%20Eventbrite%20configuration`
+        `${getBaseUrl()}/profile?eventbrite_error=${encodeURIComponent('Missing Eventbrite configuration')}`
       );
     }
 
-    const baseUrl = getBaseUrl();
     // Using the exact URL for consistency with the callback route
     const redirectUri = encodeURIComponent('https://event-connect-git-main-mindfulelementsinc-gmailcoms-projects.vercel.app/api/eventbrite/callback');
     const state = encodeURIComponent(JSON.stringify({ csrfToken, userId }));

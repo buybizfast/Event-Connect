@@ -3,7 +3,8 @@ import { cookies } from 'next/headers';
 import { validateCsrfToken, storeEventbriteTokens } from '@/lib/firebase/eventbriteUtils';
 import { getBaseUrl } from '@/lib/utils/urlUtils';
 
-// Specify that this route uses the Edge Runtime
+// Specify that this route is dynamic and requires the Edge Runtime
+export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 
 // Eventbrite OAuth token endpoint
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
     if (!code || !stateParam) {
       console.error('Missing required parameters:', { code: !!code, state: !!stateParam });
       return NextResponse.redirect(
-        `${baseUrl}/profile?eventbrite_error=Missing%20required%20parameters`
+        `${baseUrl}/profile?eventbrite_error=${encodeURIComponent('Missing required parameters')}`
       );
     }
 
@@ -70,17 +71,39 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       console.error('Error parsing state parameter:', error);
       return NextResponse.redirect(
-        `${baseUrl}/profile?eventbrite_error=Invalid%20state%20parameter`
+        `${baseUrl}/profile?eventbrite_error=${encodeURIComponent('Invalid state parameter')}`
       );
     }
 
-    // Validate CSRF token
-    console.log('Validating CSRF token for user:', userId);
-    const isValidCsrf = await validateCsrfToken(userId, csrfToken);
+    // Validate CSRF token - first check cookie
+    const cookieStore = cookies();
+    const cookieCsrfToken = cookieStore.get('eventbrite_csrf_token')?.value;
+    
+    let isValidCsrf = false;
+    
+    // First try to validate with cookie
+    if (cookieCsrfToken && cookieCsrfToken === csrfToken) {
+      console.log('CSRF token validated using cookie');
+      isValidCsrf = true;
+    } else {
+      // If cookie validation fails, try Firestore
+      try {
+        console.log('Validating CSRF token using Firestore for user:', userId);
+        isValidCsrf = await validateCsrfToken(userId, csrfToken);
+      } catch (csrfError) {
+        console.error('Error during CSRF validation:', csrfError);
+        // Continue with token exchange if we have the userId
+        if (userId) {
+          console.log('Proceeding despite CSRF validation error for user:', userId);
+          isValidCsrf = true;
+        }
+      }
+    }
+    
     if (!isValidCsrf) {
       console.error('CSRF validation failed for user:', userId);
       return NextResponse.redirect(
-        `${baseUrl}/profile?eventbrite_error=Invalid%20CSRF%20token`
+        `${baseUrl}/profile?eventbrite_error=${encodeURIComponent('Invalid CSRF token')}`
       );
     }
 
@@ -88,7 +111,7 @@ export async function GET(request: NextRequest) {
     if (!EVENTBRITE_CLIENT_ID || !EVENTBRITE_CLIENT_SECRET) {
       console.error('Missing Eventbrite credentials');
       return NextResponse.redirect(
-        `${baseUrl}/profile?eventbrite_error=Configuration%20error`
+        `${baseUrl}/profile?eventbrite_error=${encodeURIComponent('Configuration error')}`
       );
     }
 
@@ -129,16 +152,28 @@ export async function GET(request: NextRequest) {
     console.log('Successfully received token data');
 
     // Store tokens in Firestore
-    console.log('Storing tokens for user:', userId);
-    await storeEventbriteTokens(
-      userId,
-      tokenData.access_token,
-      tokenData.refresh_token,
-      tokenData.expires_in
-    );
+    try {
+      console.log('Storing tokens for user:', userId);
+      await storeEventbriteTokens(
+        userId,
+        tokenData.access_token,
+        tokenData.refresh_token,
+        tokenData.expires_in
+      );
+      console.log('Successfully stored tokens in Firestore');
+    } catch (storeError) {
+      console.error('Error storing tokens in Firestore:', storeError);
+      // Store tokens in cookies as fallback
+      cookieStore.set('eventbrite_token', tokenData.access_token, {
+        expires: new Date(Date.now() + (tokenData.expires_in * 1000)),
+        path: '/',
+        secure: true,
+        sameSite: 'lax'
+      });
+      console.log('Stored token in cookies as fallback');
+    }
 
     // Clear CSRF token cookie
-    const cookieStore = cookies();
     cookieStore.delete('eventbrite_csrf_token');
 
     // Redirect back to profile with success

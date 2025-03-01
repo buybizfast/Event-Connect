@@ -4,6 +4,9 @@ import { findEventRecommendations } from '@/lib/ai/matchmaking';
 import { getUserProfile } from '@/lib/firebase/firebaseUtils';
 import { auth } from '@/lib/firebase/firebase';
 
+// Mark this route as dynamic since it uses cookies
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const cookieStore = cookies();
