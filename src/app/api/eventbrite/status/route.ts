@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 
+// Specify that this route uses the Edge Runtime
+export const runtime = 'edge';
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const userId = searchParams.get('userId');
