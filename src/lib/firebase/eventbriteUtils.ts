@@ -1,11 +1,26 @@
-import { randomBytes } from 'crypto';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { cookies } from 'next/headers';
 
-// Generate a CSRF token
+// Generate a CSRF token using Web Crypto API (browser-compatible)
 export function generateCsrfToken(): string {
-  return randomBytes(32).toString('hex');
+  // Create a random array of 32 bytes
+  const array = new Uint8Array(32);
+  
+  // Fill with random values using the Web Crypto API
+  if (typeof crypto !== 'undefined') {
+    crypto.getRandomValues(array);
+  } else {
+    // Fallback for environments where crypto is not available
+    for (let i = 0; i < array.length; i++) {
+      array[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  
+  // Convert to hex string
+  return Array.from(array)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 // Validate CSRF token
